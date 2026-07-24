@@ -1,0 +1,59 @@
+name: RideMate Backend CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ridemate_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv Package Manager
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install Dependencies
+        run: |
+          cd backend
+          uv venv
+          uv pip install -r pyproject.toml
+
+      - name: Run Pytest Test Suite
+        env:
+          DATABASE_URL: "postgresql+psycopg://test_user:test_password@localhost:5432/ridemate_test"
+          JWT_SECRET_KEY: "ci-secret-key-for-testing-only-1234567890"
+        run: |
+          cd backend
+          PYTHONPATH=. .venv/bin/pytest tests/ --cov=app --cov-report=term-missing
+
+      - name: Verify Docker Build
+        run: |
+          cd backend
+          docker build -t ridemate-api:latest .

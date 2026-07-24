@@ -1,0 +1,178 @@
+Metadata-Version: 2.4
+Name: ridemate-backend
+Version: 0.1.0
+Summary: FastAPI backend foundation for RideMate corporate carpooling platform
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.110.0
+Requires-Dist: uvicorn[standard]>=0.28.0
+Requires-Dist: pydantic[email]>=2.6.0
+Requires-Dist: pydantic-settings>=2.2.0
+Requires-Dist: sqlalchemy[asyncio]>=2.0.0
+Requires-Dist: psycopg2-binary>=2.9.9
+Requires-Dist: asyncpg>=0.29.0
+Requires-Dist: alembic>=1.13.1
+Requires-Dist: passlib[bcrypt]>=1.7.4
+Requires-Dist: python-jose[cryptography]>=3.3.0
+Requires-Dist: python-dotenv>=1.0.1
+Requires-Dist: loguru>=0.7.2
+Requires-Dist: bcrypt>=4.0.1
+Requires-Dist: redis>=5.0.0
+
+# 🚗 RideMate FastAPI Backend Corridor (v1.0 Release Candidate)
+
+An enterprise-grade, high-performance carpooling backend built with **FastAPI**, **SQLAlchemy 2.0**, **PostgreSQL**, **Alembic**, and **Pydantic V2**.
+
+---
+
+## 🏛️ Architecture & Core Design Patterns
+
+RideMate follows a strict **Layered Clean Architecture**:
+
+```text
+HTTP Request
+     ↓
+FastAPI Router / Middleware (Security, Rate Limits, Request-ID, Logging)
+     ↓
+Service Layer (Business Logic, Validations, Event Dispatcher, Audit Log)
+     ↓
+Repository Layer (Encapsulated Database Queries, Joins, Aggregates)
+     ↓
+SQLAlchemy ORM 2.0 / PostgreSQL Database
+```
+
+### Key Architectural Standards
+- **Repository → Service → API Pattern**: Controllers never contain database queries; services never format HTTP responses.
+- **Pluggable Event Dispatcher**: Abstract `EventDispatcher` allowing seamless transition to WebSockets and FCM Push Notifications.
+- **Enterprise Security**: Rate limiting (120 req/min), Security headers (`X-Frame-Options`, `HSTS`, `CSP`), Request ID correlation (`X-Request-ID`), and audit logging (`AuditLog`).
+- **Soft Delete Pattern**: Entities (`Vehicle`, `Ride`, `RideRequest`, `Booking`, `Rating`, `Notification`) use `SoftDeleteMixin` for data preservation.
+
+---
+
+## 📁 Repository Folder Structure
+
+```text
+backend/
+├── alembic/                    # Migration scripts and environment configuration
+│   ├── versions/               # Schema version history
+│   └── env.py                  # Alembic setup with SQLite batch support
+├── app/
+│   ├── api/
+│   │   ├── deps.py             # Dependency injection (Auth tokens, DB sessions)
+│   │   └── v1/
+│   │       ├── api.py          # Version 1 aggregated router
+│   │       └── endpoints/      # Route controllers (Auth, Drivers, Vehicles, Rides, Bookings, Chat, Notifications, Ratings, Dashboard)
+│   ├── core/
+│   │   ├── config.py           # Pydantic BaseSettings environment configuration
+│   │   ├── error_codes.py      # Standardized domain error catalog
+│   │   ├── extensions.py       # Extension interfaces (WebSockets, Maps, OTP, FCM)
+│   │   ├── logging.py          # Structured Loguru logging setup
+│   │   ├── security.py         # JWT generation, verification, and bcrypt hashing
+│   │   └── validators.py       # Centralized Pakistani mobile, CNIC, and license validators
+│   ├── db/
+│   │   ├── base.py             # Model metadata registry for Alembic
+│   │   ├── base_class.py       # DeclarativeBase, UUIDMixin, TimestampMixin
+│   │   └── session.py          # SQLAlchemy Session Maker
+│   ├── middleware/
+│   │   ├── logging.py          # Request latency interceptor
+│   │   ├── rate_limit.py       # Sliding-window rate limiter
+│   │   └── security.py         # Security headers & X-Request-ID propagation
+│   ├── models/                 # SQLAlchemy ORM models (User, Token, Vehicle, Ride, Booking, Chat, Notification, Rating, AuditLog)
+│   ├── repositories/           # Encapsulated database access layer
+│   ├── schemas/                # Pydantic V2 Request & Response DTO schemas
+│   ├── services/               # Core business services & capacity engine
+│   └── main.py                 # FastAPI application factory
+├── tests/                      # Pytest integration & unit test suite (73+ tests)
+├── Dockerfile                  # Multi-stage production container build
+├── docker-compose.yml          # Container orchestration (FastAPI + PostgreSQL)
+├── pyproject.toml              # Project dependencies and tool configuration (uv)
+└── README.md                   # System documentation
+```
+
+---
+
+## ⚙️ Environment Configuration
+
+Create a `.env` file in the `backend/` directory:
+
+```env
+APP_NAME="RideMate API Corridor"
+APP_ENV="production"
+DEBUG=false
+
+# Database Connection
+DATABASE_URL="postgresql+psycopg://ridemate_user:ridemate_pass123@localhost:5432/ridemate_db"
+
+# JWT Security Settings
+JWT_SECRET_KEY="replace-this-with-a-64-character-random-hex-string"
+JWT_ALGORITHM="HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# CORS Policy
+CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
+```
+
+---
+
+## 🚀 Local Development Workflow
+
+### 1. Prerequisites
+- Python 3.12+
+- `uv` package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+
+### 2. Environment Setup
+```bash
+cd backend
+uv venv
+source .venv/bin/activate
+uv pip install -r pyproject.toml
+```
+
+### 3. Database Migrations
+```bash
+# Run latest database migrations
+.venv/bin/alembic upgrade head
+
+# Generate a new migration revision
+.venv/bin/alembic revision --autogenerate -m "Describe migration"
+```
+
+### 4. Running the API Server
+```bash
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --port 8000
+```
+
+Open interactive Swagger documentation at: **`http://localhost:8000/docs`**
+
+---
+
+## 🧪 Testing & Code Quality
+
+Run the comprehensive pytest suite:
+```bash
+# Run all tests with coverage report
+PYTHONPATH=. .venv/bin/pytest tests/ --cov=app --cov-report=term-missing
+```
+
+**Test Coverage Highlights**:
+- 73+ passing integration tests.
+- Covers Authentication, Driver Profiles, Garage Vehicles, Ride Management, Request/Booking Engine, Chat, Notifications, Ratings, Dashboard Analytics, Security Headers, and Rate Limiting.
+
+---
+
+## 🐳 Production Deployment
+
+### Container Deployment with Docker Compose
+```bash
+# Build and start services in detached mode
+docker-compose up -d --build
+
+# Inspect container health status
+docker-compose ps
+```
+
+### Health & Monitoring Endpoints
+- **Overall Health**: `GET /api/v1/health`
+- **K8s Liveness Probe**: `GET /api/v1/health/liveness`
+- **K8s Readiness Probe**: `GET /api/v1/health/readiness`

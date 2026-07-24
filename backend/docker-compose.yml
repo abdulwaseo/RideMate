@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ridemate_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ridemate_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ridemate_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ridemate_pass123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ridemate_user} -d ${POSTGRES_DB:-ridemate_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ridemate_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "RideMate API Corridor"
+      APP_ENV: "production"
+      DEBUG: "false"
+      DATABASE_URL: "postgresql+psycopg://ridemate_user:ridemate_pass123@postgres:5432/ridemate_db"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855}
+      JWT_ALGORITHM: "HS256"
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      REFRESH_TOKEN_EXPIRE_DAYS: 7
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

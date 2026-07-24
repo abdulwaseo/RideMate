@@ -3,17 +3,24 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Car, 
-  MapPin, 
   History, 
   User, 
   Settings, 
   ChevronLeft, 
   ChevronRight,
   LogOut,
-  X
+  X,
+  Plus,
+  MessageSquare,
+  Bell,
+  Users,
+  Compass
 } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { useSidebar } from '../../contexts/SidebarContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotificationContext } from '../../contexts/NotificationContext';
+import { NotificationBadge } from '../notifications/NotificationBadge';
 import { ROUTES } from '../../constants/routes';
 import { cn } from '../../utils/cn';
 
@@ -24,15 +31,40 @@ export const Sidebar: React.FC = () => {
     toggleSidebar, 
     toggleMobileSidebar 
   } = useSidebar();
+  const { logout, role } = useAuth();
+  const { unreadCount } = useNotificationContext();
 
-  const menuItems = [
-    { label: 'Overview', icon: LayoutDashboard, path: ROUTES.DASHBOARD },
-    { label: 'My Rides', icon: Car, path: '/dashboard/rides' },
-    { label: 'Routes', icon: MapPin, path: '/dashboard/routes' },
-    { label: 'History', icon: History, path: '/dashboard/history' },
-    { label: 'Profile', icon: User, path: '/dashboard/profile' },
-    { label: 'Settings', icon: Settings, path: '/dashboard/settings' },
+  const handleExitClick = () => {
+    logout();
+    if (isMobileOpen) {
+      toggleMobileSidebar();
+    }
+  };
+
+  const driverMenuItems = [
+    { label: 'Overview', icon: LayoutDashboard, path: ROUTES.DRIVER_DASHBOARD },
+    { label: 'Publish Ride', icon: Plus, path: '/dashboard/driver/publish' },
+    { label: 'My Active Ride', icon: Car, path: '/dashboard/driver/active-ride' },
+    { label: 'Ride Requests', icon: Users, path: '/dashboard/driver/requests' },
+    { label: 'Ride History', icon: History, path: '/dashboard/driver/history' },
+    { label: 'Chat', icon: MessageSquare, path: '/dashboard/driver/chat' },
+    { label: 'Notifications', icon: Bell, path: '/dashboard/driver/notifications' },
+    { label: 'Profile', icon: User, path: '/dashboard/driver/profile' },
+    { label: 'Settings', icon: Settings, path: '/dashboard/driver/settings' },
   ];
+
+  const passengerMenuItems = [
+    { label: 'Overview', icon: LayoutDashboard, path: ROUTES.PASSENGER_DASHBOARD },
+    { label: 'Search Ride', icon: Compass, path: '/dashboard/passenger/search' },
+    { label: 'My Requests', icon: Users, path: '/dashboard/passenger/requests' },
+    { label: 'Ride History', icon: History, path: '/dashboard/passenger/history' },
+    { label: 'Chat', icon: MessageSquare, path: '/dashboard/passenger/chat' },
+    { label: 'Notifications', icon: Bell, path: '/dashboard/passenger/notifications' },
+    { label: 'Profile', icon: User, path: '/dashboard/passenger/profile' },
+    { label: 'Settings', icon: Settings, path: '/dashboard/passenger/settings' },
+  ];
+
+  const menuItems = role === 'driver' ? driverMenuItems : passengerMenuItems;
 
   const handleNavClick = () => {
     if (isMobileOpen) {
@@ -77,10 +109,13 @@ export const Sidebar: React.FC = () => {
               isCollapsed && "lg:m-0"
             )} />
             <span className={cn(
-              "transition-opacity duration-200",
+              "transition-opacity duration-200 flex-1 flex items-center justify-between",
               isCollapsed && "lg:hidden lg:w-0"
             )}>
-              {item.label}
+              <span>{item.label}</span>
+              {item.label === 'Notifications' && unreadCount > 0 && (
+                <NotificationBadge count={unreadCount} />
+              )}
             </span>
           </NavLink>
         ))}
@@ -93,7 +128,7 @@ export const Sidebar: React.FC = () => {
       )}>
         <NavLink
           to={ROUTES.HOME}
-          onClick={handleNavClick}
+          onClick={handleExitClick}
           className={cn(
             "flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold text-red-400/80 hover:text-red-400 hover:bg-red-500/5 transition-all",
             isCollapsed && "lg:justify-center lg:px-2"

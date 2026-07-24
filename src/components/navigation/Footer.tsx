@@ -12,7 +12,7 @@ export const Footer: React.FC = () => {
     product: [
       { label: 'Find a Ride', path: ROUTES.FIND_RIDE },
       { label: 'Become a Driver', path: ROUTES.BECOME_DRIVER },
-      { label: 'Demo Portal', path: ROUTES.DASHBOARD },
+      { label: 'Login', path: ROUTES.LOGIN },
     ],
     company: [
       { label: 'About Us', path: ROUTES.ABOUT },

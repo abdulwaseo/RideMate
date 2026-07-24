@@ -51,14 +51,14 @@ export const LandingPage: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link to={ROUTES.BECOME_DRIVER} className="w-full sm:w-auto">
-                <Button variant="glass" size="lg" className="w-full sm:w-auto" leftIcon={<Car className="h-5 w-5 text-brand-accent" />}>
-                  Become a Driver
-                </Button>
-              </Link>
               <Link to={ROUTES.FIND_RIDE} className="w-full sm:w-auto">
                 <Button variant="primary" size="lg" className="w-full sm:w-auto" rightIcon={<ArrowRight className="h-5 w-5" />}>
                   Find a Ride
+                </Button>
+              </Link>
+              <Link to={ROUTES.BECOME_DRIVER} className="w-full sm:w-auto">
+                <Button variant="glass" size="lg" className="w-full sm:w-auto" leftIcon={<Car className="h-5 w-5 text-brand-accent" />}>
+                  Become a Driver
                 </Button>
               </Link>
             </div>
@@ -117,7 +117,7 @@ export const LandingPage: React.FC = () => {
       </Section>
 
       {/* 3. How It Works Section */}
-      <Section className="py-20 md:py-24">
+      <Section id="how-it-works" className="py-20 md:py-24">
         <Container>
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
             <Badge variant="accent">Process Workflow</Badge>
@@ -167,7 +167,7 @@ export const LandingPage: React.FC = () => {
       </Section>
 
       {/* 4. Features Section */}
-      <Section glow="emerald" className="py-20 md:py-24 bg-white/[0.005] border-t border-brand-border/40">
+      <Section id="features" glow="emerald" className="py-20 md:py-24 bg-white/[0.005] border-t border-brand-border/40">
         <Container>
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
             <Badge variant="primary">Features Suite</Badge>

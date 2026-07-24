@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, UserPlus, LogIn } from 'lucide-react';
 import { Logo } from '../ui/Logo';
 import { Button } from '../ui/Button';
 import { Container } from '../ui/Container';
@@ -15,12 +15,12 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { label: 'Home', path: ROUTES.HOME },
-    { label: 'About Us', path: ROUTES.ABOUT },
-    { label: 'Contact', path: ROUTES.CONTACT },
+    { label: 'Features', path: '/#features' },
+    { label: 'How It Works', path: '/#how-it-works' },
   ];
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return location.pathname === path || (location.pathname === '/' && location.hash === path.replace('/', ''));
   };
 
   return (
@@ -34,9 +34,9 @@ export const Navbar: React.FC = () => {
         {/* Desktop Nav Links */}
         <div className="hidden lg:flex items-center gap-8">
           {navLinks.map((link) => (
-            <Link
+            <a
               key={link.label}
-              to={link.path}
+              href={link.path}
               className={cn(
                 "text-sm font-semibold tracking-wide transition-colors",
                 isActive(link.path)
@@ -45,32 +45,30 @@ export const Navbar: React.FC = () => {
               )}
             >
               {link.label}
-            </Link>
+            </a>
           ))}
         </div>
 
-        {/* Desktop Auth/Call-To-Actions */}
+        {/* Desktop Production CTAs */}
         <div className="hidden lg:flex items-center gap-4">
-          <Link to={ROUTES.BECOME_DRIVER}>
-            <Button variant="glass" size="sm">
-              Become a Driver
+          <Link to={ROUTES.LOGIN}>
+            <Button variant="glass" size="sm" leftIcon={<LogIn className="h-4 w-4 text-brand-primary" />}>
+              Login
             </Button>
           </Link>
-          <Link to={ROUTES.FIND_RIDE}>
-            <Button variant="primary" size="sm" rightIcon={<ArrowRight className="h-4 w-4" />}>
-              Find a Ride
+          <Link to={ROUTES.SELECT_ROLE}>
+            <Button variant="primary" size="sm" rightIcon={<UserPlus className="h-4 w-4" />}>
+              Sign Up
             </Button>
-          </Link>
-          <span className="h-4 w-px bg-brand-border" />
-          <Link to={ROUTES.DASHBOARD} className="text-sm font-semibold text-brand-accent hover:text-brand-accentLight transition-colors">
-            Demo Portal
           </Link>
         </div>
 
         {/* Mobile Menu Hamburger button */}
         <div className="lg:hidden flex items-center gap-3">
-          <Link to={ROUTES.DASHBOARD} className="text-xs font-semibold text-brand-accent border border-brand-accent/20 px-2.5 py-1.5 rounded-lg bg-brand-accent/5">
-            Demo
+          <Link to={ROUTES.LOGIN}>
+            <Button variant="glass" size="sm" className="text-xs px-3 py-1.5">
+              Login
+            </Button>
           </Link>
           <button
             onClick={toggleMenu}
@@ -87,9 +85,9 @@ export const Navbar: React.FC = () => {
         <div className="lg:hidden absolute top-full left-0 right-0 border-b border-brand-border/80 bg-brand-bg/95 backdrop-blur-xl py-6 px-4 flex flex-col gap-5 shadow-2xl">
           <div className="flex flex-col gap-4">
             {navLinks.map((link) => (
-              <Link
+              <a
                 key={link.label}
-                to={link.path}
+                href={link.path}
                 onClick={() => setIsOpen(false)}
                 className={cn(
                   "text-base font-semibold px-2 py-1.5 rounded-lg transition-colors text-left",
@@ -99,27 +97,22 @@ export const Navbar: React.FC = () => {
                 )}
               >
                 {link.label}
-              </Link>
+              </a>
             ))}
           </div>
 
           <div className="h-px bg-brand-border/40" />
 
           <div className="flex flex-col gap-3">
-            <Link to={ROUTES.BECOME_DRIVER} onClick={() => setIsOpen(false)} className="w-full">
-              <Button variant="glass" size="md" className="w-full">
-                Become a Driver
+            <Link to={ROUTES.LOGIN} onClick={() => setIsOpen(false)} className="w-full">
+              <Button variant="glass" size="md" className="w-full" leftIcon={<LogIn className="h-4 w-4" />}>
+                Login
               </Button>
             </Link>
-            <Link to={ROUTES.FIND_RIDE} onClick={() => setIsOpen(false)} className="w-full">
-              <Button variant="primary" size="md" className="w-full" rightIcon={<ArrowRight className="h-4 w-4" />}>
-                Find a Ride
+            <Link to={ROUTES.SELECT_ROLE} onClick={() => setIsOpen(false)} className="w-full">
+              <Button variant="primary" size="md" className="w-full" rightIcon={<UserPlus className="h-4 w-4" />}>
+                Sign Up
               </Button>
-            </Link>
-            <Link to={ROUTES.DASHBOARD} onClick={() => setIsOpen(false)} className="w-full text-center mt-2">
-              <span className="text-sm font-semibold text-brand-accent hover:underline">
-                Access Dashboard Demo
-              </span>
             </Link>
           </div>
         </div>
