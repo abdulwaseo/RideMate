@@ -57,7 +57,7 @@ export const DashboardHome: React.FC = () => {
         />
         <StatCard 
           title="Verified Safe Drives" 
-          value={12} 
+          value={0} 
           icon={ShieldCheck} 
           description="Carpool drives completed" 
         />
@@ -92,19 +92,8 @@ export const DashboardHome: React.FC = () => {
               <p className="text-xs text-brand-textMuted">Top commute paths heading to Tariq Road PECHS</p>
             </div>
 
-            <div className="space-y-3 pt-2">
-              <div className="flex justify-between items-center text-xs border-b border-brand-border/40 pb-2.5">
-                <span className="text-brand-text">Gulshan-e-Iqbal → Dilkusha</span>
-                <Badge variant="success">8 Drivers online</Badge>
-              </div>
-              <div className="flex justify-between items-center text-xs border-b border-brand-border/40 pb-2.5">
-                <span className="text-brand-text">Clifton / DHA → Dilkusha</span>
-                <Badge variant="success">5 Drivers online</Badge>
-              </div>
-              <div className="flex justify-between items-center text-xs pb-1">
-                <span className="text-brand-text">North Nazimabad → Dilkusha</span>
-                <Badge variant="success">6 Drivers online</Badge>
-              </div>
+            <div className="pt-2 text-xs text-brand-muted italic">
+              No live corridor feeds active at this moment.
             </div>
             
             <div className="pt-2">

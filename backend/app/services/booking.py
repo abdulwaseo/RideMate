@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from typing import List, Tuple
 from uuid import UUID
@@ -110,13 +111,51 @@ class RideRequestService:
         self.db.commit()
         res = self._format_request_response(request)
 
-        # Broadcast BOOKING_REQUESTED WebSocket event
+        # Notify driver in-app (persisted to DB) and via WebSocket
         try:
             import asyncio
+            from app.services.event_dispatcher import InAppEventDispatcher
+            from app.schemas.enums import NotificationCategory, NotificationPriority
             from app.schemas.websocket import WSEvent, WSEventType
             from app.websocket.connection_manager import manager
 
             driver_user_id = ride.driver_profile.user.id if (ride.driver_profile and ride.driver_profile.user) else None
+            passenger_name = user.name or "A passenger"
+
+            # Persist in-app notification for driver
+            if driver_user_id:
+                dispatcher = InAppEventDispatcher(self.db)
+                notif = dispatcher.notif_repo.create(
+                    user_id=driver_user_id,
+                    title="New Ride Request",
+                    body=f"{passenger_name} has requested a seat on your ride to {ride.destination_area}.",
+                    category=NotificationCategory.BOOKING,
+                    priority=NotificationPriority.HIGH,
+                    action_url="/dashboard/driver/requests",
+                    data_json=json.dumps({"type": "ride_request", "ride_id": str(ride.id), "request_id": str(request.id)}),
+                )
+                self.db.commit()
+
+                # Fire notification_created WS event so NotificationContext updates the badge
+                notif_event = WSEvent(
+                    event_type=WSEventType.NOTIFICATION_CREATED.value,
+                    payload={
+                        "id": str(notif.id),
+                        "title": notif.title,
+                        "body": notif.body,
+                        "category": notif.category.value,
+                        "priority": notif.priority.value,
+                        "is_read": False,
+                        "action_url": notif.action_url,
+                        "data_json": notif.data_json,
+                        "created_at": notif.created_at.isoformat(),
+                    },
+                )
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(manager.broadcast_to_room(f"user:{driver_user_id}", notif_event))
+
+            # Broadcast BOOKING_REQUESTED WebSocket event to both driver and passenger
             evt = WSEvent(
                 event_type=WSEventType.BOOKING_REQUESTED.value,
                 payload=res.model_dump(mode="json"),
@@ -137,28 +176,92 @@ class RideRequestService:
         return [self._format_request_response(r) for r in requests]
 
     def cancel_request(self, user: User, request_id: UUID) -> RideRequestResponse:
-        """Cancel a pending ride request by passenger."""
+        """Cancel a pending or accepted ride request by passenger."""
         req = self.req_repo.get_by_id(request_id)
         if not req or req.passenger_id != user.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
 
-        if req.status != BookingStatus.PENDING:
+        if req.status in [BookingStatus.CANCELLED, BookingStatus.REJECTED]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="[REQ_005] Only pending requests can be cancelled.",
+                detail="[REQ_005] This request cannot be cancelled.",
             )
 
+        if req.status not in [BookingStatus.PENDING, BookingStatus.ACCEPTED]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="[REQ_005] This request cannot be cancelled.",
+            )
+
+        previous_status = req.status
+
+        # 1. Update request status to CANCELLED
         updated = self.req_repo.update_status(req, BookingStatus.CANCELLED)
+
+        # 2. If it was ACCEPTED, restore seat capacity and cancel confirmed booking record
+        if previous_status == BookingStatus.ACCEPTED:
+            if req.ride:
+                RideCapacityService.increment_seat(self.db, req.ride)
+
+            if req.booking:
+                self.booking_repo.cancel_booking(req.booking)
+
         self.db.commit()
         res = self._format_request_response(updated)
 
-        # Broadcast BOOKING_CANCELLED WebSocket event
+        # 3. Notify driver if an accepted booking was cancelled & broadcast WS event
         try:
             import asyncio
+            from app.services.event_dispatcher import InAppEventDispatcher
+            from app.schemas.enums import NotificationCategory, NotificationPriority
             from app.schemas.websocket import WSEvent, WSEventType
             from app.websocket.connection_manager import manager
 
             driver_user_id = req.ride.driver_profile.user.id if (req.ride and req.ride.driver_profile and req.ride.driver_profile.user) else None
+            passenger_name = user.name or "A passenger"
+
+            chat_room = None
+            if previous_status == BookingStatus.ACCEPTED:
+                from app.services.chat import ChatService
+                chat_svc = ChatService(self.db)
+                chat_room = chat_svc.chat_repo.get_by_ride_id(req.ride_id)
+                if chat_room:
+                    dispatcher = InAppEventDispatcher(self.db)
+                    dispatcher.broadcast_system_message(chat_room.id, f"Passenger {passenger_name} left the ride.")
+
+                if driver_user_id:
+                    dispatcher = InAppEventDispatcher(self.db)
+                    notif = dispatcher.notif_repo.create(
+                        user_id=driver_user_id,
+                        title="Booking Cancelled",
+                        body=f"{passenger_name} cancelled their accepted booking to {req.ride.destination_area}.",
+                        category=NotificationCategory.BOOKING,
+                        priority=NotificationPriority.HIGH,
+                        action_url="/dashboard/driver/requests",
+                        data_json=json.dumps({"type": "ride_cancelled", "ride_id": str(req.ride_id), "request_id": str(req.id)}),
+                    )
+                    self.db.commit()
+
+                    # Fire notification_created WS event to driver
+                    notif_event = WSEvent(
+                        event_type=WSEventType.NOTIFICATION_CREATED.value,
+                        payload={
+                            "id": str(notif.id),
+                            "title": notif.title,
+                            "body": notif.body,
+                            "category": notif.category.value,
+                            "priority": notif.priority.value,
+                            "is_read": False,
+                            "action_url": notif.action_url,
+                            "data_json": notif.data_json,
+                            "created_at": notif.created_at.isoformat(),
+                        },
+                    )
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        loop.create_task(manager.broadcast_to_room(f"user:{driver_user_id}", notif_event))
+
+            # Broadcast BOOKING_CANCELLED WebSocket event to driver, passenger, and chat room
             evt = WSEvent(
                 event_type=WSEventType.BOOKING_CANCELLED.value,
                 payload=res.model_dump(mode="json"),
@@ -168,6 +271,8 @@ class RideRequestService:
                 if driver_user_id:
                     loop.create_task(manager.broadcast_to_room(f"user:{driver_user_id}", evt))
                 loop.create_task(manager.broadcast_to_room(f"user:{user.id}", evt))
+                if chat_room:
+                    loop.create_task(manager.broadcast_to_room(f"chat:{chat_room.id}", evt))
         except Exception:
             pass
 
@@ -244,6 +349,8 @@ class RideRequestService:
                 body=f"Your ride request for commute to {req.ride.destination_area} was accepted by the driver.",
                 category=NotificationCategory.BOOKING,
                 priority=NotificationPriority.HIGH,
+                action_url="/dashboard/passenger/requests",
+                data_json=json.dumps({"type": "request_accepted", "request_id": str(req.id), "ride_id": str(req.ride_id)}),
             )
 
             dispatcher.dispatch_notification(
@@ -252,6 +359,8 @@ class RideRequestService:
                 body=f"{passenger_name} has joined your ride.",
                 category=NotificationCategory.RIDE,
                 priority=NotificationPriority.MEDIUM,
+                action_url="/dashboard/driver/active-ride",
+                data_json=json.dumps({"type": "passenger_joined", "request_id": str(req.id), "ride_id": str(req.ride_id)}),
             )
 
             self.db.commit()
@@ -260,7 +369,7 @@ class RideRequestService:
 
             # Format created room response for WebSocket broadcast
             try:
-                import asyncio
+                from app.websocket.connection_manager import safe_broadcast_to_room
                 room_formatted = chat_svc._format_room_response(chat_room, user.id)
                 room_payload = room_formatted.model_dump(mode="json")
                 room_event = WSEvent(
@@ -276,12 +385,10 @@ class RideRequestService:
                     payload=booking_event_payload,
                 )
 
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(manager.broadcast_to_room(f"user:{user.id}", room_event))
-                    loop.create_task(manager.broadcast_to_room(f"user:{req.passenger_id}", room_event))
-                    loop.create_task(manager.broadcast_to_room(f"user:{user.id}", booking_event))
-                    loop.create_task(manager.broadcast_to_room(f"user:{req.passenger_id}", booking_event))
+                safe_broadcast_to_room(f"user:{user.id}", room_event)
+                safe_broadcast_to_room(f"user:{req.passenger_id}", room_event)
+                safe_broadcast_to_room(f"user:{user.id}", booking_event)
+                safe_broadcast_to_room(f"user:{req.passenger_id}", booking_event)
             except Exception:
                 pass
 
@@ -325,6 +432,8 @@ class RideRequestService:
             body=f"Your request for ride to {req.ride.destination_area} was declined by the driver.",
             category=NotificationCategory.BOOKING,
             priority=NotificationPriority.MEDIUM,
+            action_url="/dashboard/passenger/requests",
+            data_json=json.dumps({"type": "request_rejected", "request_id": str(req.id), "ride_id": str(req.ride_id)}),
         )
 
         self.db.commit()
@@ -332,18 +441,15 @@ class RideRequestService:
 
         # Broadcast BOOKING_REJECTED WebSocket event
         try:
-            import asyncio
             from app.schemas.websocket import WSEvent, WSEventType
-            from app.websocket.connection_manager import manager
+            from app.websocket.connection_manager import safe_broadcast_to_room
 
             evt = WSEvent(
                 event_type=WSEventType.BOOKING_REJECTED.value,
                 payload=res.model_dump(mode="json"),
             )
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                loop.create_task(manager.broadcast_to_room(f"user:{user.id}", evt))
-                loop.create_task(manager.broadcast_to_room(f"user:{req.passenger_id}", evt))
+            safe_broadcast_to_room(f"user:{user.id}", evt)
+            safe_broadcast_to_room(f"user:{req.passenger_id}", evt)
         except Exception:
             pass
 

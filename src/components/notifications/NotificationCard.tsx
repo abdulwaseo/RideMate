@@ -61,7 +61,26 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
       onMarkRead(notification.id);
     }
     if (onClick) {
-      onClick(notification.action_url);
+      let targetUrl = notification.action_url;
+      if (!targetUrl && notification.data_json) {
+        try {
+          const data = JSON.parse(notification.data_json);
+          if (data.type === 'ride_request') {
+            targetUrl = '/dashboard/driver/requests';
+          } else if (data.type === 'request_accepted' || data.type === 'request_rejected') {
+            targetUrl = '/dashboard/passenger/requests';
+          } else if (data.type === 'ride_cancelled') {
+            targetUrl = '/dashboard/passenger/requests';
+          } else if (data.type === 'passenger_joined') {
+            targetUrl = '/dashboard/driver/active-ride';
+          } else if (data.type === 'ride_completed') {
+            targetUrl = '/dashboard/passenger/history';
+          }
+        } catch {
+          // ignore
+        }
+      }
+      onClick(targetUrl);
     }
   };
 
@@ -100,7 +119,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
           <span>{formatTimeAgo(notification.created_at)}</span>
           <span>•</span>
           <span className="font-semibold text-slate-400">{notification.category}</span>
-          {notification.action_url && (
+          {(notification.action_url || notification.data_json) && (
             <>
               <span>•</span>
               <span className="flex items-center gap-1 text-emerald-400 group-hover:underline">

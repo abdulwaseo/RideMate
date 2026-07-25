@@ -247,3 +247,20 @@ class ConnectionManager:
 
 # Global singleton instance for connection manager
 manager = ConnectionManager()
+
+
+def safe_broadcast_to_room(room_id: str, event: WSEvent, exclude_connection_id: Optional[str] = None) -> None:
+    """
+    Safely dispatches a WebSocket broadcast event regardless of whether
+    called from an async event loop thread or a sync worker thread.
+    """
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(manager.broadcast_to_room(room_id, event, exclude_connection_id))
+    except RuntimeError:
+        try:
+            asyncio.run(manager.broadcast_to_room(room_id, event, exclude_connection_id))
+        except Exception as e:
+            logger.warning(f"Failed safe_broadcast_to_room for {room_id}: {e}")
+

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ClipboardList, ShieldAlert } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -8,7 +9,14 @@ import { RequestCard } from '../../components/driver/RequestCard';
 import { useDriver } from '../../hooks/useDriver';
 
 export const RideRequests: React.FC = () => {
-  const { requests, acceptRequest, rejectRequest, activeRide } = useDriver();
+  const { requests, acceptRequest, rejectRequest, activeRide, refreshAllData } = useDriver();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (refreshAllData) {
+      refreshAllData();
+    }
+  }, [location.pathname, refreshAllData]);
 
   // Filter requests by status
   const pendingRequests = requests.filter((r) => r.status === 'Pending');

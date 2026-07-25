@@ -61,12 +61,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const readRequestedIdsRef = useRef<Set<string>>(new Set());
+
   // Mark visible messages as read
   useEffect(() => {
     const unread = messages
-      .filter((m) => !m.read_by_me && m.message_type !== 'SYSTEM')
+      .filter((m) => !m.read_by_me && m.message_type !== 'SYSTEM' && !readRequestedIdsRef.current.has(m.id))
       .map((m) => m.id);
     if (unread.length > 0) {
+      unread.forEach((id) => readRequestedIdsRef.current.add(id));
       onMarkRead(unread);
     }
   }, [messages, onMarkRead]);

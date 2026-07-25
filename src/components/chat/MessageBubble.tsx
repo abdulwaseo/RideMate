@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { ChatMessage } from '../../types/chat';
 import { ReadReceipt } from './ReadReceipt';
 import { useAuth } from '../../hooks/useAuth';
-import { Reply, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Reply, Edit2, Trash2, Check, X, Clock, AlertCircle } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -18,7 +18,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onDelete,
 }) => {
   const { user } = useAuth();
-  const isSelf = message.sender_id === user?.mobileNumber || message.sender_name?.includes('Self');
+  const isSelf = Boolean(
+    (user?.id && message.sender_id === user.id) ||
+    (user?.mobileNumber && message.sender_id === user.mobileNumber) ||
+    (user?.name && message.sender_name === user.name) ||
+    message.sender_name?.includes('Self')
+  );
   const isSystem = message.message_type === 'SYSTEM' || message.message_type === 'RIDE_UPDATE';
 
   const [isEditing, setIsEditing] = useState(false);
@@ -41,7 +46,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     }
   };
 
-  const formattedTime = new Date(message.created_at).toLocaleTimeString([], {
+  const dateObj = message.created_at ? new Date(message.created_at) : new Date();
+  const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj;
+  const formattedTime = validDate.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -94,7 +101,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] opacity-75">
           {message.is_edited && <span className="italic font-medium">edited</span>}
           <span>{formattedTime}</span>
-          {isSelf && <ReadReceipt readCount={message.read_count} readByMe={message.read_by_me} />}
+          {isSelf && (
+            message.status === 'sending' ? (
+              <Clock className="w-3 h-3 text-slate-300 animate-pulse ml-1 inline-block" />
+            ) : message.status === 'failed' ? (
+              <span className="flex items-center gap-0.5 text-rose-400 font-semibold ml-1">
+                <AlertCircle className="w-3 h-3" />
+                Failed
+              </span>
+            ) : (
+              <ReadReceipt readCount={message.read_count} readByMe={message.read_by_me} />
+            )
+          )}
         </div>
 
         {/* Hover Action Toolbar */}

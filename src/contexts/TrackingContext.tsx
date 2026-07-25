@@ -10,6 +10,7 @@ import type { TrackingSession, ETAData, TrackingSessionStatus } from '../types/t
 import type { GPSLocation } from '../types/tracking';
 import type { WSEvent } from '../types/websocket';
 import { useSocketEvent } from '../hooks/useSocketEvent';
+import { getAuthToken } from '../utils/token';
 
 // ─── Context Shape ────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ const TrackingContext = createContext<TrackingContextType | undefined>(undefined
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function apiCall<T>(method: string, path: string, body?: unknown): Promise<T | null> {
-  const token = localStorage.getItem('ridemate_access_token') ?? '';
+  const token = getAuthToken() ?? '';
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method,

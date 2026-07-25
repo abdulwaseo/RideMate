@@ -10,7 +10,6 @@ import {
   X,
   Camera,
   Heart,
-  ShieldCheck,
   Calendar
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
@@ -59,8 +58,8 @@ export const PassengerProfile: React.FC = () => {
         fullName: user.name,
         mobileNumber: user.mobileNumber,
         officeName: user.officeName || '',
-        emergencyName: localStorage.getItem('ridemate_emergency_name') || 'Muhammad Ali',
-        emergencyPhone: localStorage.getItem('ridemate_emergency_phone') || '+92 300 9998887',
+        emergencyName: localStorage.getItem('ridemate_emergency_name') || '',
+        emergencyPhone: localStorage.getItem('ridemate_emergency_phone') || '',
       });
     }
   }, [user, reset, showEditModal]);
@@ -96,7 +95,7 @@ export const PassengerProfile: React.FC = () => {
     !!user?.name,
     !!user?.mobileNumber,
     !!user?.officeName,
-    !!localStorage.getItem('ridemate_emergency_name') || true,
+    !!localStorage.getItem('ridemate_emergency_name'),
   ];
   const completionPercentage = Math.round((completionStats.filter(Boolean).length / completionStats.length) * 100);
 
@@ -144,7 +143,7 @@ export const PassengerProfile: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 w-full text-xs pt-1">
               <div className="text-center">
                 <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wider block">Trips Served</span>
-                <strong className="text-brand-text font-semibold">{completedCount + 15} Rides</strong>
+                <strong className="text-brand-text font-semibold">{completedCount} Rides</strong>
               </div>
               <div className="text-center">
                 <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wider block">Member Since</span>
@@ -179,19 +178,19 @@ export const PassengerProfile: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Mobile Number</span>
-                <span className="text-brand-text font-semibold">{user?.mobileNumber || '+92 300 1234567'}</span>
+                <span className="text-brand-text font-semibold">{user?.mobileNumber || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Office / Company</span>
-                <span className="text-brand-text font-semibold">{user?.officeName || 'Dilkusha Towers office'}</span>
+                <span className="text-brand-text font-semibold">{user?.officeName || 'Dilkusha Towers'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Corporate Email</span>
-                <span className="text-brand-text font-semibold">{user?.email || 'waseo@company.com (Mock)'}</span>
+                <span className="text-brand-text font-semibold">{user?.email || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">CNIC Number</span>
-                <span className="text-brand-text font-semibold">{user?.cnicNumber || '42101-1234567-1'}</span>
+                <span className="text-brand-text font-semibold">{user?.cnicNumber || 'N/A'}</span>
               </div>
             </div>
           </Card>
@@ -206,13 +205,13 @@ export const PassengerProfile: React.FC = () => {
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Contact Name</span>
                 <span className="text-brand-text font-semibold">
-                  {localStorage.getItem('ridemate_emergency_name') || 'Muhammad Ali'}
+                  {localStorage.getItem('ridemate_emergency_name') || 'Not Set'}
                 </span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Contact Phone</span>
                 <span className="text-brand-text font-semibold">
-                  {localStorage.getItem('ridemate_emergency_phone') || '+92 300 9998887'}
+                  {localStorage.getItem('ridemate_emergency_phone') || 'Not Set'}
                 </span>
               </div>
             </div>
@@ -224,21 +223,23 @@ export const PassengerProfile: React.FC = () => {
               Recent Activity Feed
             </h4>
             <div className="space-y-3.5">
-              {[
-                { label: 'Requested a seat to VentureDive', time: 'Today, 08:45 AM', icon: <Calendar className="h-4 w-4 text-brand-primaryLight" /> },
-                { label: 'Joined chatroom corridor Zainab Ahmed', time: 'Yesterday, 04:50 PM', icon: <User className="h-4 w-4 text-brand-accentLight" /> },
-                { label: 'Completed trip serving carbon offsets', time: '3 days ago', icon: <ShieldCheck className="h-4 w-4 text-blue-400" /> },
-              ].map((act, idx) => (
-                <div key={idx} className="flex gap-3 text-xs text-left items-start">
-                  <div className="p-1.5 rounded-lg border border-brand-border/40 bg-white/[0.01]">
-                    {act.icon}
+              {rideHistory.length > 0 ? (
+                rideHistory.slice(0, 5).map((entry) => (
+                  <div key={entry.id} className="flex gap-3 text-xs text-left items-start">
+                    <div className="p-1.5 rounded-lg border border-brand-border/40 bg-white/[0.01]">
+                      <Calendar className="h-4 w-4 text-brand-primaryLight" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-brand-text">
+                        Trip with {entry.driverName} ({entry.status})
+                      </p>
+                      <p className="text-[9px] text-brand-muted">{entry.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-brand-text">{act.label}</p>
-                    <p className="text-[9px] text-brand-muted">{act.time}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-brand-muted italic">No recent booking activity recorded.</p>
+              )}
             </div>
           </Card>
 

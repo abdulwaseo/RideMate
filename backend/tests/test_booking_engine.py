@@ -114,6 +114,29 @@ class TestRideRequests:
         assert del_resp.status_code == 200
         assert del_resp.json()["data"]["status"] == BookingStatus.CANCELLED.value
 
+    def test_passenger_cancel_accepted_request_restores_seats(self, client, driver_with_ride, passenger1_headers):
+        driver_headers, ride_id = driver_with_ride
+
+        # 1. Passenger submits request
+        req_resp = client.post("/api/v1/ride-requests", json={"ride_id": ride_id}, headers=passenger1_headers)
+        req_id = req_resp.json()["data"]["id"]
+
+        # 2. Driver accepts request (seats decremented to 0, ride becomes FULL)
+        acc_resp = client.patch(f"/api/v1/drivers/requests/{req_id}/accept", headers=driver_headers)
+        assert acc_resp.status_code == 200
+        assert acc_resp.json()["data"]["ride_summary"]["status"] == RideStatus.FULL.value
+
+        # 3. Passenger cancels accepted request
+        del_resp = client.delete(f"/api/v1/ride-requests/{req_id}", headers=passenger1_headers)
+        assert del_resp.status_code == 200
+        assert del_resp.json()["data"]["status"] == BookingStatus.CANCELLED.value
+
+        # 4. Verify ride status reverts from FULL to UPCOMING and seat is restored
+        ride_resp = client.get(f"/api/v1/rides/{ride_id}")
+        assert ride_resp.json()["data"]["status"] == RideStatus.UPCOMING.value
+        assert ride_resp.json()["data"]["available_seats"] == 1
+
+
 
 # ------------------------------------------------------------------ #
 #  Driver Accept/Reject & Booking Flow Tests                          #

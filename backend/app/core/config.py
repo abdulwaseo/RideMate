@@ -29,16 +29,26 @@ class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://ridemate_user:dtcc123@localhost:5432/ridemate_db")
 
     # CORS origins resolver
-    CORS_ORIGINS: Union[str, List[str]] = ["*"]
+    CORS_ORIGINS: Union[str, List[str]] = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+    ]
 
     @field_validator("CORS_ORIGINS")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, (list, str)):
+        elif isinstance(v, list):
             return v
-        raise ValueError(v)
+        return [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://localhost:8000",
+        ]
 
     # Redis settings
     REDIS_URL: str = "redis://localhost:6379/0"

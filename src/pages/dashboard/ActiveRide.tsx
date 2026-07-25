@@ -42,6 +42,7 @@ const ActiveRideInner: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { trackingStatus, startDriverTracking, stopDriverTracking } = useMapContext();
   const { activeSession, etaData, driverLocation, isTracking } = useTrackingContext();
@@ -81,9 +82,12 @@ const ActiveRideInner: React.FC = () => {
       if (success) {
         setShowCancelModal(false);
         navigate('/dashboard/driver');
+      } else {
+        setErrorMsg('Failed to cancel ride. Please try again.');
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg('Failed to cancel ride. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -172,6 +176,12 @@ const ActiveRideInner: React.FC = () => {
         <Card hoverEffect={false} className="p-4 border border-brand-primary/25 bg-brand-primary/10 text-brand-primaryLight text-sm max-w-2xl font-bold flex items-center gap-2">
           <CheckCircle className="h-4.5 w-4.5" />
           <span>{successMsg}</span>
+        </Card>
+      )}
+
+      {errorMsg && (
+        <Card hoverEffect={false} className="p-4 border border-red-500/25 bg-red-500/10 text-red-400 text-sm max-w-2xl font-semibold">
+          {errorMsg}
         </Card>
       )}
 

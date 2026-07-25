@@ -84,10 +84,10 @@ def list_my_ride_requests(
     response_model=SuccessResponse[RideRequestResponse],
     status_code=status.HTTP_200_OK,
     summary="Cancel Ride Request",
-    description="Cancels a pending ride request submitted by the passenger.",
+    description="Cancels a pending or accepted ride request submitted by the passenger.",
     responses={
         200: {"description": "Ride request cancelled successfully"},
-        400: {"model": ErrorResponse, "description": "[REQ_005] Only pending requests can be cancelled"},
+        400: {"model": ErrorResponse, "description": "[REQ_005] Only pending or accepted requests can be cancelled"},
         404: {"model": ErrorResponse, "description": "Request not found"},
     },
 )

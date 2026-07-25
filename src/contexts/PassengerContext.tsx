@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useRide } from './RideContext';
+import { getAuthToken } from '../utils/token';
 
 // Forwarding interfaces
 export type Ride = import('./RideContext').Ride;
@@ -17,6 +18,7 @@ interface PassengerContextType {
   searchRides: (filters: SearchFilters) => Promise<void>;
   createBookingRequest: (rideId: string) => Promise<boolean>;
   cancelBookingRequest: (requestId: string) => Promise<boolean>;
+  refreshAllData?: () => Promise<void>;
 }
 
 const PassengerContext = createContext<PassengerContextType | undefined>(undefined);
@@ -67,6 +69,7 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     bookingRequests: centralRequests,
     createBookingRequest: centralCreateRequest,
     cancelBookingRequest: centralCancelRequest,
+    refreshAllData,
   } = useRide();
 
   const [searchResults, setSearchResults] = useState<Ride[]>([]);
@@ -75,8 +78,7 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const passengerId = user?.mobileNumber || '';
 
-  const getToken = () =>
-    localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+  const getToken = () => getAuthToken();
 
   // Initial load: fetch all upcoming rides from backend
   const fetchAllRides = useCallback(async () => {
@@ -200,6 +202,7 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         searchRides,
         createBookingRequest,
         cancelBookingRequest,
+        refreshAllData,
       }}
     >
       {children}

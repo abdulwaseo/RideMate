@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import type { ChatMessage, ChatRoom, TypingUser } from '../types/chat';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
+import { getAuthToken } from '../utils/token';
 
 interface ChatContextType {
   rooms: ChatRoom[];
@@ -10,6 +11,7 @@ interface ChatContextType {
   typingUsers: TypingUser[];
   isLoading: boolean;
   replyingTo: ChatMessage | null;
+  totalUnreadCount: number;
   setReplyingTo: (msg: ChatMessage | null) => void;
   selectRoom: (roomId: string) => void;
   sendMessage: (content: string, replyToId?: string) => Promise<boolean>;
@@ -40,13 +42,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isAuthenticated) return;
     try {
       setIsLoading(true);
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-      const res = await fetch('/api/v1/chat/rooms', {
+      const token = getAuthToken();
+      const res = await fetch('http://localhost:8000/api/v1/chat/rooms', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
         const json = await res.json();
-        setRooms(json.data || []);
+        const rawRooms: ChatRoom[] = json.data || [];
+        const uniqueRooms: ChatRoom[] = [];
+        for (const r of rawRooms) {
+          if (!uniqueRooms.some((existing) => existing.id === r.id || (existing.ride_id && existing.ride_id === r.ride_id))) {
+            uniqueRooms.push(r);
+          }
+        }
+        setRooms(uniqueRooms);
       }
     } catch (err) {
       console.warn('[ChatContext] Error fetching chat rooms:', err);
@@ -66,14 +75,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [isAuthenticated, refreshRooms]);
 
+  const joinRoomRef = useRef(joinRoom);
+  useEffect(() => { joinRoomRef.current = joinRoom; }, [joinRoom]);
+
+  const leaveRoomRef = useRef(leaveRoom);
+  useEffect(() => { leaveRoomRef.current = leaveRoom; }, [leaveRoom]);
+
   // Load message history from backend when active room changes
   useEffect(() => {
     if (!activeRoomId || !isAuthenticated) return;
 
     const fetchMessages = async () => {
       try {
-        const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-        const res = await fetch(`/api/v1/chat/rooms/${activeRoomId}/messages?size=100`, {
+        const token = getAuthToken();
+        const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages?size=100`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -92,33 +107,71 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Subscribe socket to chat room
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
-    joinRoom(chatChannel);
+    joinRoomRef.current(chatChannel);
 
     return () => {
-      leaveRoom(chatChannel);
+      leaveRoomRef.current(chatChannel);
     };
-  }, [activeRoomId, isAuthenticated, joinRoom, leaveRoom]);
+  }, [activeRoomId, isAuthenticated]);
 
-  // Socket event listeners
+  // Ref-based stable values for WebSocket listeners
+  const activeRoomIdRef = useRef(activeRoomId);
+  useEffect(() => { activeRoomIdRef.current = activeRoomId; }, [activeRoomId]);
+
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  const refreshRoomsRef = useRef(refreshRooms);
+  useEffect(() => { refreshRoomsRef.current = refreshRooms; }, [refreshRooms]);
+
+  // Socket event listeners — registered once per WS connection
   useEffect(() => {
     if (!isConnected) return;
 
-    const unsubRoomCreated = subscribe('room_created', (evt) => {
-      const room = evt.payload as ChatRoom;
-      if (room && room.id) {
-        setRooms((prev) => [room, ...prev.filter((r) => r.id !== room.id)]);
-      }
+    const unsubRoomCreated = subscribe('room_created', () => {
+      refreshRoomsRef.current();
+    });
+
+    const unsubBookingAccepted = subscribe('booking_accepted', () => {
+      refreshRoomsRef.current();
+    });
+
+    const unsubBookingCancelled = subscribe('booking_cancelled', () => {
+      refreshRoomsRef.current();
     });
 
     const unsubReceived = subscribe('message_received', (evt) => {
-      const msg = evt.payload as ChatMessage;
+      const msg = evt.payload as ChatMessage & { client_temp_id?: string };
       if (!msg || !msg.chat_room_id) return;
 
       const roomId = msg.chat_room_id;
       setMessagesMap((prev) => {
         const existing = prev[roomId] || [];
+
+        // 1. If real message ID is already present, do nothing
         if (existing.some((m) => m.id === msg.id)) return prev;
-        return { ...prev, [roomId]: [...existing, msg] };
+
+        // 2. Reconcile with optimistic message (by client_temp_id, temp_id, or matching content + sender)
+        const tempIdx = existing.findIndex((m) => {
+          if (m.id.startsWith('temp-') || m.temp_id || m.status === 'sending') {
+            if (msg.client_temp_id && (m.id === msg.client_temp_id || m.temp_id === msg.client_temp_id)) {
+              return true;
+            }
+            if (m.content === msg.content && (m.sender_id === msg.sender_id || m.sender_name === msg.sender_name)) {
+              return true;
+            }
+          }
+          return false;
+        });
+
+        if (tempIdx !== -1) {
+          const updated = [...existing];
+          updated[tempIdx] = { ...msg, status: 'sent' };
+          return { ...prev, [roomId]: updated };
+        }
+
+        // 3. Otherwise append new incoming message
+        return { ...prev, [roomId]: [...existing, { ...msg, status: 'sent' }] };
       });
 
       // Update room last message preview
@@ -171,8 +224,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubTypingStart = subscribe('typing_start', (evt) => {
       const payload = evt.payload as { user_id: string; user_name: string };
-      const roomId = evt.room_id?.replace('chat:', '') || activeRoomId;
-      if (!roomId || !payload.user_id || payload.user_id === user?.mobileNumber) return;
+      const roomId = evt.room_id?.replace('chat:', '') || activeRoomIdRef.current;
+      if (!roomId || !payload.user_id) return;
+
+      const currentUser = userRef.current;
+      const isSelfTyping = Boolean(
+        (currentUser?.id && payload.user_id === currentUser.id) ||
+        (currentUser?.mobileNumber && payload.user_id === currentUser.mobileNumber) ||
+        (currentUser?.name && payload.user_name === currentUser.name)
+      );
+
+      if (isSelfTyping) return;
 
       setTypingMap((prev) => {
         const current = prev[roomId] || [];
@@ -182,9 +244,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const unsubTypingStop = subscribe('typing_stop', (evt) => {
-      const payload = evt.payload as { user_id: string };
-      const roomId = evt.room_id?.replace('chat:', '') || activeRoomId;
+      const payload = evt.payload as { user_id: string; user_name?: string };
+      const roomId = evt.room_id?.replace('chat:', '') || activeRoomIdRef.current;
       if (!roomId || !payload.user_id) return;
+
+      const currentUser = userRef.current;
+      const isSelfTyping = Boolean(
+        (currentUser?.id && payload.user_id === currentUser.id) ||
+        (currentUser?.mobileNumber && payload.user_id === currentUser.mobileNumber) ||
+        (currentUser?.name && (payload.user_name === currentUser.name || !payload.user_name))
+      );
+
+      if (isSelfTyping) return;
 
       setTypingMap((prev) => {
         const current = prev[roomId] || [];
@@ -194,6 +265,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       unsubRoomCreated();
+      unsubBookingAccepted();
+      unsubBookingCancelled();
       unsubReceived();
       unsubEdit();
       unsubDelete();
@@ -201,39 +274,66 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubTypingStart();
       unsubTypingStop();
     };
-  }, [isConnected, subscribe, activeRoomId, user]);
+  }, [isConnected, subscribe]);
 
-  const selectRoom = (roomId: string) => {
+  const selectRoom = useCallback((roomId: string) => {
     setActiveRoomId(roomId);
     setReplyingTo(null);
-  };
+  }, []);
 
-  const sendMessage = async (content: string, replyToId?: string): Promise<boolean> => {
+  const sendMessage = useCallback(async (content: string, replyToId?: string): Promise<boolean> => {
     if (!activeRoomId || !content.trim()) return false;
+
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const currentUser = userRef.current;
+
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      temp_id: tempId,
+      client_temp_id: tempId,
+      chat_room_id: activeRoomId,
+      sender_id: currentUser?.id || currentUser?.mobileNumber || '',
+      sender_name: currentUser?.name || 'Me',
+      message_type: 'TEXT',
+      content: content.trim(),
+      reply_to_message_id: replyToId,
+      reply_to: replyingTo ? { id: replyingTo.id, sender_name: replyingTo.sender_name, content: replyingTo.content } : undefined,
+      is_edited: false,
+      is_deleted: false,
+      read_count: 0,
+      read_by_me: true,
+      created_at: new Date().toISOString(),
+      status: 'sending',
+    };
+
+    // 1. Immediately append optimistic message to local state
+    setMessagesMap((prev) => ({
+      ...prev,
+      [activeRoomId]: [...(prev[activeRoomId] || []), optimisticMsg],
+    }));
+    setReplyingTo(null);
 
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
 
-    // Try socket send first
+    // 2. Attempt WebSocket send
     const sent = sendEvent({
       event_type: 'message_send',
       room_id: chatChannel,
       payload: {
-        room_id: chatChannel,
         content: content.trim(),
         reply_to_message_id: replyToId,
+        client_temp_id: tempId,
       },
     });
 
     if (sent) {
-      setReplyingTo(null);
-      sendTyping(false);
       return true;
     }
 
-    // REST fallback
+    // 3. Fallback to REST API if WS not connected
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/chat/rooms/${activeRoomId}/messages`, {
+      const token = getAuthToken();
+      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -242,41 +342,60 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({
           content: content.trim(),
           reply_to_message_id: replyToId,
+          client_temp_id: tempId,
         }),
       });
 
       if (res.ok) {
         const json = await res.json();
-        const msg = json.data as ChatMessage;
-        setMessagesMap((prev) => ({
-          ...prev,
-          [activeRoomId]: [...(prev[activeRoomId] || []), msg],
-        }));
-        setReplyingTo(null);
-        sendTyping(false);
+        const serverMsg = json.data as ChatMessage;
+        setMessagesMap((prev) => {
+          const list = prev[activeRoomId] || [];
+          const idx = list.findIndex((m) => m.id === tempId || m.temp_id === tempId);
+          if (idx !== -1) {
+            const updated = [...list];
+            updated[idx] = { ...serverMsg, status: 'sent', temp_id: tempId };
+            return { ...prev, [activeRoomId]: updated };
+          }
+          if (list.some((m) => m.id === serverMsg.id)) return prev;
+          return { ...prev, [activeRoomId]: [...list, { ...serverMsg, status: 'sent' }] };
+        });
         return true;
       }
     } catch (err) {
-      console.warn('[ChatContext] REST send message fallback:', err);
+      console.warn('[ChatContext] REST send message fallback error:', err);
     }
-    return false;
-  };
 
-  const editMessage = async (messageId: string, newContent: string): Promise<boolean> => {
+    // 4. Mark optimistic message as failed if both WS and REST send failed
+    setMessagesMap((prev) => {
+      const list = prev[activeRoomId] || [];
+      const idx = list.findIndex((m) => m.id === tempId || m.temp_id === tempId);
+      if (idx !== -1) {
+        const updated = [...list];
+        updated[idx] = { ...updated[idx], status: 'failed' };
+        return { ...prev, [activeRoomId]: updated };
+      }
+      return prev;
+    });
+
+    return false;
+  }, [activeRoomId, sendEvent, replyingTo]);
+
+  const editMessage = useCallback(async (messageId: string, newContent: string): Promise<boolean> => {
     if (!activeRoomId || !newContent.trim()) return false;
 
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
     const sent = sendEvent({
       event_type: 'message_edit',
       room_id: chatChannel,
-      payload: { room_id: chatChannel, message_id: messageId, content: newContent.trim() },
+      payload: { message_id: messageId, content: newContent.trim() },
     });
 
     if (sent) return true;
 
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
+      const token = getAuthToken();
+      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -297,23 +416,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[ChatContext] Error editing message:', err);
     }
     return false;
-  };
+  }, [activeRoomId, sendEvent]);
 
-  const deleteMessage = async (messageId: string): Promise<boolean> => {
+  const deleteMessage = useCallback(async (messageId: string): Promise<boolean> => {
     if (!activeRoomId) return false;
 
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
     const sent = sendEvent({
       event_type: 'message_delete',
       room_id: chatChannel,
-      payload: { room_id: chatChannel, message_id: messageId },
+      payload: { message_id: messageId },
     });
 
     if (sent) return true;
 
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-      const res = await fetch(`/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
+      const token = getAuthToken();
+      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -330,21 +449,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[ChatContext] Error deleting message:', err);
     }
     return false;
-  };
+  }, [activeRoomId, sendEvent]);
 
-  const markAsRead = (messageIds: string[]) => {
+  const markAsRead = useCallback((messageIds: string[]) => {
     if (!activeRoomId || messageIds.length === 0) return;
 
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
     sendEvent({
       event_type: 'message_read',
       room_id: chatChannel,
-      payload: { room_id: chatChannel, message_ids: messageIds },
+      payload: { message_ids: messageIds },
     });
 
     // REST fallback
-    const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-    fetch(`/api/v1/chat/rooms/${activeRoomId}/read`, {
+    const token = getAuthToken();
+    fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/read`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -352,16 +471,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
       body: JSON.stringify({ message_ids: messageIds }),
     }).catch(() => {});
-  };
+  }, [activeRoomId, sendEvent]);
 
-  const sendTyping = (isTyping: boolean) => {
+  const sendTyping = useCallback((isTyping: boolean) => {
     if (!activeRoomId) return;
 
     const chatChannel = activeRoomId.startsWith('chat:') ? activeRoomId : `chat:${activeRoomId}`;
     sendEvent({
       event_type: isTyping ? 'typing_start' : 'typing_stop',
       room_id: chatChannel,
-      payload: { room_id: chatChannel },
+      payload: {},
     });
 
     if (isTyping) {
@@ -370,11 +489,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sendTyping(false);
       }, 3000);
     }
-  };
+  }, [activeRoomId, sendEvent]);
 
   const activeRoom = rooms.find((r) => r.id === activeRoomId) || null;
   const currentMessages = activeRoomId ? messagesMap[activeRoomId] || [] : [];
   const currentTypingUsers = activeRoomId ? typingMap[activeRoomId] || [] : [];
+  const totalUnreadCount = rooms.reduce((acc, r) => acc + (r.unread_count || 0), 0);
 
   return (
     <ChatContext.Provider
@@ -385,6 +505,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         typingUsers: currentTypingUsers,
         isLoading,
         replyingTo,
+        totalUnreadCount,
         setReplyingTo,
         selectRoom,
         sendMessage,

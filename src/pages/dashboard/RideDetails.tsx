@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -12,7 +12,8 @@ import {
   Car, 
   AlertTriangle,
   FileText,
-  UserCheck
+  UserCheck,
+  Loader2
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -20,18 +21,103 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Avatar } from '../../components/ui/Avatar';
 import { usePassenger } from '../../hooks/usePassenger';
+import { getAuthToken } from '../../utils/token';
+import type { Ride } from '../../contexts/RideContext';
 
 export const RideDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { ridesList, bookingRequests, createBookingRequest } = usePassenger();
+  const { ridesList, searchResults, bookingRequests, createBookingRequest } = usePassenger();
   const navigate = useNavigate();
+
+  // Initial local state lookup from context list / search results
+  const contextRide = ridesList.find((r) => r.id === id) || searchResults.find((r) => r.id === id) || null;
+  const [ride, setRide] = useState<Ride | null>(contextRide);
+  const [isFetching, setIsFetching] = useState<boolean>(!contextRide);
 
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Find ride details
-  const ride = ridesList.find((r) => r.id === id);
+  // Sync ride when contextRide updates
+  useEffect(() => {
+    if (contextRide) {
+      setRide(contextRide);
+      setIsFetching(false);
+    }
+  }, [contextRide]);
+
+  // Direct backend fetch by ID on mount or ID change
+  useEffect(() => {
+    if (!id) return;
+
+    let isMounted = true;
+    const fetchRideDirectly = async () => {
+      if (!contextRide) {
+        setIsFetching(true);
+      }
+      try {
+        const token = getAuthToken();
+        const res = await fetch(`http://localhost:8000/api/v1/rides/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (res.ok && isMounted) {
+          const json = await res.json();
+          const r = json.data;
+          if (r) {
+            const mappedRide: Ride = {
+              id: r.id,
+              driverId: r.driver_summary?.mobile_number || r.driver?.mobile_number || '',
+              driver: {
+                name: r.driver_summary?.name || r.driver?.name || r.driver_name || 'Driver',
+                rating: r.driver_summary?.rating || r.driver?.rating || 4.8,
+                officeName: r.driver_summary?.office_name || r.driver?.office_name || 'Dilkusha Towers',
+                vehicleType:
+                  (r.vehicle_summary?.vehicle_type || r.vehicle?.vehicle_type || r.vehicle_type) === 'Bike'
+                    ? 'Bike'
+                    : 'Car',
+                vehicleModel: r.vehicle_summary?.model || r.vehicle?.model || 'Vehicle',
+                vehicleRegistrationNumber:
+                  r.vehicle_summary?.registration_number || r.vehicle?.registration_number || '',
+                mobileNumber: r.driver_summary?.mobile_number || r.driver?.mobile_number || '',
+              },
+              pickupArea: r.pickup_area,
+              destination: r.destination_area,
+              meetingPoint: r.pickup_point || r.pickup_area,
+              date: r.departure_date,
+              departureTime: r.departure_time,
+              availableSeats: r.available_seats,
+              totalSeats: r.total_seats || r.available_seats,
+              farePerPassenger: r.fare_per_passenger,
+              description: r.ride_notes || r.description,
+              estimatedDuration: r.estimated_duration || '25 mins',
+              status:
+                r.status === 'Cancelled' || r.status === 'CANCELLED'
+                  ? 'Cancelled'
+                  : r.status === 'Completed' || r.status === 'COMPLETED'
+                  ? 'Completed'
+                  : r.status === 'Active' || r.status === 'ACTIVE'
+                  ? 'Active'
+                  : 'Upcoming',
+            };
+            setRide(mappedRide);
+          }
+        }
+      } catch (err) {
+        console.warn('[RideDetails] Direct ride fetch error:', err);
+      } finally {
+        if (isMounted) {
+          setIsFetching(false);
+        }
+      }
+    };
+
+    fetchRideDirectly();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, contextRide]);
 
   // Check if passenger already has an active request (Pending or Accepted)
   const activeRequest = bookingRequests.find(
@@ -40,6 +126,19 @@ export const RideDetails: React.FC = () => {
 
   const hasActiveRequest = !!activeRequest;
 
+  // Show loading indicator while fetching
+  if (isFetching && !ride) {
+    return (
+      <div className="space-y-6 text-left select-none max-w-xl mx-auto pt-16 text-center">
+        <Card hoverEffect={false} className="border border-brand-border p-10 bg-brand-card/20 flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="h-8 w-8 text-brand-primary animate-spin" />
+          <p className="text-sm font-semibold text-brand-textMuted">Loading commute corridor details...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Only show missing/expired screen AFTER fetch completes and ride is definitively missing
   if (!ride) {
     return (
       <div className="space-y-6 text-left select-none max-w-xl mx-auto pt-12">

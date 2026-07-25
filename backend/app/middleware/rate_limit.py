@@ -12,7 +12,7 @@ class RateLimitMiddleware:
     Restricts client requests per minute based on IP address.
     """
 
-    def __init__(self, app: ASGIApp, requests_per_minute: int = 120):
+    def __init__(self, app: ASGIApp, requests_per_minute: int = 1200):
         self.app = app
         self.requests_per_minute = requests_per_minute
         self.client_requests: Dict[str, List[float]] = defaultdict(list)
@@ -23,9 +23,16 @@ class RateLimitMiddleware:
             return
 
         path = scope.get("path", "")
-        # Skip rate limit for health checks or testing environment
+        method = scope.get("method", "")
+
+        # Always allow OPTIONS preflight requests through without rate limiting
+        if method == "OPTIONS":
+            await self.app(scope, receive, send)
+            return
+
+        # Skip rate limit for health checks, testing, or development environments
         from app.core.config import settings
-        if settings.APP_ENV in ("testing", "test") or path.startswith("/api/v1/health") or path == "/health":
+        if settings.APP_ENV in ("development", "dev", "testing", "test", "local") or path.startswith("/api/v1/health") or path == "/health":
             await self.app(scope, receive, send)
             return
 
@@ -43,7 +50,7 @@ class RateLimitMiddleware:
             logger.warning(f"Rate limit exceeded for IP: {client_ip}")
             body = json.dumps({
                 "success": False,
-                "message": "[SYSTEM_002] Rate limit exceeded. Maximum 120 requests per minute allowed.",
+                "message": "[SYSTEM_002] Rate limit exceeded.",
                 "error_code": "SYSTEM_002",
                 "data": None,
             }).encode()
@@ -54,6 +61,10 @@ class RateLimitMiddleware:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"retry-after", b"60"),
+                    (b"access-control-allow-origin", b"http://localhost:5173"),
+                    (b"access-control-allow-credentials", b"true"),
+                    (b"access-control-allow-headers", b"*"),
+                    (b"access-control-allow-methods", b"*"),
                 ],
             })
             await send({

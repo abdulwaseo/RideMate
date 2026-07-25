@@ -1,5 +1,7 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useAuth } from '../hooks/useAuth';
+import { getAuthToken, clearAuthToken } from '../utils/token';
 
 // Reusable interfaces for Sprint 5 lifecycle coordinating
 export interface Driver {
@@ -76,21 +78,35 @@ interface RideContextType {
   cancelBookingRequest: (requestId: string) => Promise<boolean>;
   acceptBookingRequest: (requestId: string) => Promise<boolean>;
   rejectBookingRequest: (requestId: string) => Promise<boolean>;
+  refreshAllData: () => Promise<void>;
 }
 
 const RideContext = createContext<RideContextType | undefined>(undefined);
 
 export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [rides, setRides] = useState<Ride[]>([]);
   const [driverRides, setDriverRides] = useState<Ride[]>([]);
   const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Ref-counter so concurrent async operations don't race on the shared flag.
+  // isLoading stays true until ALL in-flight operations have finished.
+  const loadingCount = useRef<number>(0);
+  const startLoading = () => {
+    loadingCount.current += 1;
+    setIsLoading(true);
+  };
+  const stopLoading = () => {
+    loadingCount.current = Math.max(0, loadingCount.current - 1);
+    if (loadingCount.current === 0) setIsLoading(false);
+  };
+
   const mapRide = (r: any): Ride => ({
     id: r.id,
-    driverId: r.driver_summary?.mobile_number || r.driver?.mobile_number || r.driver_id || '',
+    driverId: r.driver_summary?.mobile_number || r.driver?.mobile_number || r.driver_id || r.driver_name || '',
     driver: {
-      name: r.driver_summary?.name || r.driver?.name || 'Driver',
+      name: r.driver_summary?.name || r.driver?.name || r.driver_name || 'Driver',
       rating: r.driver_summary?.rating || r.driver?.rating || 4.8,
       officeName: r.driver_summary?.office_name || r.driver?.office_name || 'Dilkusha Towers',
       vehicleType: (r.vehicle_summary?.vehicle_type || r.vehicle?.vehicle_type) === 'Bike' ? 'Bike' : 'Car',
@@ -116,8 +132,8 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchRides = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      startLoading();
+      const token = getAuthToken();
       const res = await fetch('http://localhost:8000/api/v1/rides', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -129,17 +145,18 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.warn('[RideContext] Error fetching rides from backend:', err);
     } finally {
-      setIsLoading(false);
+      stopLoading();
     }
   }, []);
 
   const fetchDriverRides = useCallback(async () => {
-    const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-    if (!token) return;
+    const token = getAuthToken();
+    if (!token || user?.role !== 'driver') return;
     try {
       const res = await fetch('http://localhost:8000/api/v1/rides/driver/rides', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 403) return;
       if (res.ok) {
         const json = await res.json();
         const rawRides = json.data || [];
@@ -148,7 +165,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       console.warn('[RideContext] Error fetching driver rides:', err);
     }
-  }, []);
+  }, [user?.role]);
 
   // Shared mapper — works for both /ride-requests/my and /drivers/requests responses
   const mapRequestToBooking = (r: any): BookingRequest => ({
@@ -192,7 +209,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const fetchPassengerRequests = useCallback(async () => {
-    const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+    const token = getAuthToken();
     if (!token) return [];
     try {
       const res = await fetch('http://localhost:8000/api/v1/ride-requests/my', {
@@ -209,12 +226,13 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchDriverIncomingRequests = useCallback(async () => {
-    const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-    if (!token) return [];
+    const token = getAuthToken();
+    if (!token || user?.role !== 'driver') return [];
     try {
       const res = await fetch('http://localhost:8000/api/v1/drivers/requests', {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 403) return [];
       if (res.ok) {
         const json = await res.json();
         return (json.data || []).map(mapRequestToBooking);
@@ -223,7 +241,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('[RideContext] Error fetching driver incoming requests:', err);
     }
     return [];
-  }, []);
+  }, [user?.role]);
 
   const refreshAllRequests = useCallback(async () => {
     const [passengerReqs, driverReqs] = await Promise.all([
@@ -238,11 +256,24 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setBookingRequests(merged);
   }, [fetchPassengerRequests, fetchDriverIncomingRequests]);
 
+  const refreshAllData = useCallback(async () => {
+    await Promise.all([
+      fetchRides(),
+      fetchDriverRides(),
+      refreshAllRequests(),
+    ]);
+  }, [fetchRides, fetchDriverRides, refreshAllRequests]);
+
   useEffect(() => {
     fetchRides();
     fetchDriverRides();
     refreshAllRequests();
   }, [fetchRides, fetchDriverRides, refreshAllRequests]);
+
+  // Keep a stable ref to rides so WS handlers can read current rides
+  // without needing rides in their dependency array (avoids subscription churn).
+  const ridesRef = useRef<Ride[]>(rides);
+  useEffect(() => { ridesRef.current = rides; }, [rides]);
 
 
   const { subscribe } = useWebSocket();
@@ -257,19 +288,26 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (prev.some((r) => r.id === id)) return prev;
 
         const rId = data.ride_id || data.ride?.id;
-        const targetRide: Ride = rides.find((r) => r.id === rId) || {
-          id: rId || 'ride-101',
-          driverId: '+92 321 9876543',
-          driver: { name: 'Driver', rating: 4.8, vehicleType: 'Car', vehicleModel: 'Sedan', vehicleRegistrationNumber: 'AAA-123', mobileNumber: '+92 321 9876543' },
-          pickupArea: data.pickup_area || data.ride?.pickup_area || 'Gulshan-e-Iqbal',
-          destination: data.destination_area || data.ride?.destination_area || 'Dilkusha Towers',
-          meetingPoint: 'Near Pickup Signal',
-          date: new Date().toISOString().split('T')[0],
-          departureTime: '08:30 AM',
-          availableSeats: 3,
-          totalSeats: 4,
-          farePerPassenger: 400,
-          estimatedDuration: '25 mins',
+        const targetRide: Ride = ridesRef.current.find((r) => r.id === rId) || {
+          id: rId || '',
+          driverId: data.ride?.driver?.mobile_number || data.ride?.driver_summary?.mobile_number || '',
+          driver: {
+            name: data.ride?.driver?.name || data.ride?.driver_summary?.name || 'Driver',
+            rating: data.ride?.driver?.rating || data.ride?.driver_summary?.rating || 5.0,
+            vehicleType: (data.ride?.vehicle?.vehicle_type || 'Car') as 'Car' | 'Bike',
+            vehicleModel: data.ride?.vehicle?.model || 'Vehicle',
+            vehicleRegistrationNumber: data.ride?.vehicle?.registration_number || '',
+            mobileNumber: data.ride?.driver?.mobile_number || '',
+          },
+          pickupArea: data.pickup_area || data.ride?.pickup_area || '',
+          destination: data.destination_area || data.ride?.destination_area || '',
+          meetingPoint: data.ride?.meeting_point || data.pickup_area || '',
+          date: data.ride?.departure_date || new Date().toISOString().split('T')[0],
+          departureTime: data.ride?.departure_time || '',
+          availableSeats: data.ride?.available_seats ?? 1,
+          totalSeats: data.ride?.total_seats ?? 1,
+          farePerPassenger: data.ride?.fare_per_passenger ?? 0,
+          estimatedDuration: data.ride?.estimated_duration || '',
           status: 'Upcoming',
         };
 
@@ -277,13 +315,13 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: id,
           rideId: targetRide.id,
           ride: targetRide,
-          passengerId: data.passenger_id || data.passenger?.id || data.passenger?.mobile_number || 'passenger-1',
-          passengerName: data.passenger_name || data.passenger?.name || 'Passenger',
-          passengerRating: 4.9,
-          requestedSeats: 1,
-          officeName: 'VentureDive',
-          requestTime: 'Just now',
-          requestDate: new Date().toISOString().split('T')[0],
+          passengerId: data.passenger_id || data.passenger?.id || data.passenger?.mobile_number || '',
+          passengerName: data.passenger_name || data.passenger_summary?.name || data.passenger?.name || 'Passenger',
+          passengerRating: data.passenger_rating || data.passenger_summary?.rating || 5.0,
+          requestedSeats: data.requested_seats || 1,
+          officeName: data.passenger_summary?.office_name || data.office_name || '',
+          requestTime: data.created_at ? new Date(data.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+          requestDate: data.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
           status: 'Pending',
         };
 
@@ -314,9 +352,21 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = evt.payload;
       if (!data) return;
       const reqId = data.request_id || data.id;
+      const rideId = data.ride_id;
       setBookingRequests((prev) =>
-        prev.map((r) => (r.id === reqId ? { ...r, status: 'Cancelled' } : r))
+        prev.map((r) =>
+          (reqId && r.id === reqId) || (rideId && r.rideId === rideId)
+            ? { ...r, status: 'Cancelled' }
+            : r
+        )
       );
+      fetchRides();
+    });
+
+    const unsubRideUpd = subscribe('ride_update', () => {
+      fetchRides();
+      fetchDriverRides();
+      refreshAllRequests();
     });
 
     return () => {
@@ -324,10 +374,11 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unsubAcc();
       unsubRej();
       unsubCan();
+      unsubRideUpd();
     };
-  }, [subscribe, rides, fetchRides]);
+  }, [subscribe, fetchRides, fetchDriverRides, refreshAllRequests]);
 
-  // Central backend-driven booking life-cycle operators
+  // Central backend-driven booking life-cycle operator
   const publishRide = async (
     _driverMobile: string,
     _driverName: string,
@@ -337,9 +388,9 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     _vehiclePlate: string,
     rideData: Omit<Ride, 'id' | 'driverId' | 'driver' | 'status' | 'totalSeats' | 'estimatedDuration'>
   ): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
 
       // Format departure_time to HH:MM:SS
       let formattedTime = rideData.departureTime || '08:30:00';
@@ -359,18 +410,16 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const departureDate = rideData.date && rideData.date >= todayStr ? rideData.date : todayStr;
 
       const payload = {
-        pickup_area: rideData.pickupArea || 'Gulshan-e-Iqbal',
-        pickup_point: rideData.meetingPoint || rideData.pickupArea || 'Pickup Landmark Gate',
-        destination_area: rideData.destination || 'Dilkusha Towers',
-        destination_point: rideData.destination || 'Dilkusha Towers Main Entrance',
+        pickup_area: rideData.pickupArea,
+        pickup_point: rideData.meetingPoint || rideData.pickupArea,
+        destination_area: rideData.destination,
+        destination_point: rideData.destination,
         departure_date: departureDate,
         departure_time: formattedTime,
         available_seats: Number(rideData.availableSeats),
         fare_per_passenger: Number(rideData.farePerPassenger),
         ride_notes: rideData.description || null,
       };
-
-      console.log('[RideContext] Sending POST /api/v1/rides payload:', JSON.stringify(payload, null, 2));
 
       const res = await fetch('http://localhost:8000/api/v1/rides', {
         method: 'POST',
@@ -381,30 +430,41 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify(payload),
       });
 
-      console.log('[RideContext] POST /api/v1/rides response status:', res.status, res.statusText);
-      const json = await res.json();
-      console.log('[RideContext] POST /api/v1/rides response data:', JSON.stringify(json, null, 2));
+      if (res.status === 401) {
+        console.warn('[RideContext] Session expired (401 Unauthorized). Clearing stale tokens.');
+        clearAuthToken();
+        window.location.href = '/login';
+        return false;
+      }
+
+      if (res.status === 409) {
+        console.warn('[RideContext] Active ride already exists on backend (409 Conflict). Synchronizing driver rides...');
+        await fetchDriverRides();
+        return false;
+      }
 
       if (res.ok || res.status === 201) {
         await fetchRides();
         await fetchDriverRides();
-        setIsLoading(false);
         return true;
       }
+
+      return false;
     } catch (err) {
       console.error('[RideContext] Error publishing ride to backend:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const editRide = async (
     rideId: string,
     rideData: Partial<Omit<Ride, 'id' | 'driverId' | 'driver' | 'status' | 'totalSeats' | 'estimatedDuration'>>
   ): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}`, {
         method: 'PATCH',
         headers: {
@@ -424,20 +484,21 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         await fetchRides();
-        setIsLoading(false);
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error editing ride:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const cancelRide = async (rideId: string): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}/cancel`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -445,20 +506,22 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         await fetchRides();
-        setIsLoading(false);
+        await fetchDriverRides();
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error cancelling ride:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const completeRide = async (rideId: string): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}/complete`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -466,14 +529,17 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         await fetchRides();
-        setIsLoading(false);
+        await fetchDriverRides();
+        await refreshAllRequests();
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error completing ride:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const createBookingRequest = async (
@@ -484,9 +550,9 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rideId: string,
     requestedSeats = 1
   ): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch('http://localhost:8000/api/v1/ride-requests', {
         method: 'POST',
         headers: {
@@ -504,21 +570,22 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok || res.status === 201) {
         await refreshAllRequests();
-        setIsLoading(false);
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error creating booking request:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const cancelBookingRequest = async (requestId: string): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-      // Passenger cancels their own pending request via DELETE
+      const token = getAuthToken();
+      // Passenger cancels their own pending or accepted request via DELETE
       const res = await fetch(`http://localhost:8000/api/v1/ride-requests/${requestId}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -529,20 +596,27 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
           prev.map((r) => (r.id === requestId ? { ...r, status: 'Cancelled' } : r))
         );
         await refreshAllRequests();
-        setIsLoading(false);
+        await fetchRides();
         return true;
       }
+
+      const json = await res.json().catch(() => null);
+      if (json?.detail) {
+        console.warn('[RideContext] Cannot cancel booking request:', json.detail);
+      }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error cancelling booking request:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const acceptBookingRequest = async (requestId: string): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch(`http://localhost:8000/api/v1/drivers/requests/${requestId}/accept`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -551,20 +625,21 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res.ok) {
         await refreshAllRequests();
         await fetchRides();
-        setIsLoading(false);
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error accepting booking request:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   const rejectBookingRequest = async (requestId: string): Promise<boolean> => {
-    setIsLoading(true);
+    startLoading();
     try {
-      const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+      const token = getAuthToken();
       const res = await fetch(`http://localhost:8000/api/v1/drivers/requests/${requestId}/reject`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -572,14 +647,15 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res.ok) {
         await refreshAllRequests();
-        setIsLoading(false);
         return true;
       }
+      return false;
     } catch (err) {
       console.error('[RideContext] Error rejecting booking request:', err);
+      return false;
+    } finally {
+      stopLoading();
     }
-    setIsLoading(false);
-    return false;
   };
 
   return (
@@ -597,6 +673,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cancelBookingRequest,
         acceptBookingRequest,
         rejectBookingRequest,
+        refreshAllData,
       }}
     >
       {children}

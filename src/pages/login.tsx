@@ -26,6 +26,7 @@ export const LoginPage: React.FC = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isValid },
     reset,
   } = useForm<LoginFormValues>({
@@ -37,6 +38,13 @@ export const LoginPage: React.FC = () => {
       rememberMe: false,
     }
   });
+
+  const fillDemoAccount = (demoRole: UserRole, mobile: string) => {
+    setRole(demoRole);
+    setValue('mobileNumber', mobile, { shouldValidate: true, shouldDirty: true });
+    setValue('password', '123456789', { shouldValidate: true, shouldDirty: true });
+    setErrorMsg(null);
+  };
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
@@ -72,6 +80,40 @@ export const LoginPage: React.FC = () => {
     >
       <div className="space-y-5">
         
+        {/* Quick Demo Credentials Box */}
+        <div className="p-3.5 rounded-xl bg-brand-surface/80 border border-brand-border/80 text-xs space-y-2">
+          <div className="flex items-center justify-between text-brand-text font-semibold">
+            <span>🔑 Testing Credentials</span>
+            <span className="text-[10px] bg-brand-accent/20 text-brand-accentLight px-2 py-0.5 rounded-full font-mono">Password: 123456789</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('driver', '03243633432')}
+              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-accent/50 transition-all text-brand-textMuted hover:text-brand-text"
+            >
+              <div className="font-medium text-brand-accentLight text-[11px] truncate">Abdul Waseo (Driver)</div>
+              <div className="font-mono text-[10px] mt-0.5">03243633432</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('passenger', '03161108768')}
+              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-primary/50 transition-all text-brand-textMuted hover:text-brand-text"
+            >
+              <div className="font-medium text-brand-primaryLight text-[11px] truncate">Wasay (Pass 1)</div>
+              <div className="font-mono text-[10px] mt-0.5">03161108768</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDemoAccount('passenger', '03332297246')}
+              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-primary/50 transition-all text-brand-textMuted hover:text-brand-text"
+            >
+              <div className="font-medium text-brand-primaryLight text-[11px] truncate">Wasi (Pass 2)</div>
+              <div className="font-mono text-[10px] mt-0.5">03332297246</div>
+            </button>
+          </div>
+        </div>
+
         {/* Role Toggle Switch */}
         <div className="p-1 rounded-xl bg-brand-surface border border-brand-border flex select-none">
           <button
@@ -176,3 +218,4 @@ export const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+

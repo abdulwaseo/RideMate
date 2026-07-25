@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -9,9 +9,16 @@ import { usePassenger } from '../../hooks/usePassenger';
 type TabStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled';
 
 export const PassengerRequests: React.FC = () => {
-  const { bookingRequests, cancelBookingRequest, isLoading } = usePassenger();
+  const { bookingRequests, cancelBookingRequest, isLoading, refreshAllData } = usePassenger();
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabStatus>('Pending');
+
+  useEffect(() => {
+    if (refreshAllData) {
+      refreshAllData();
+    }
+  }, [location.pathname, refreshAllData]);
 
   // Filter requests matching active tab
   const filteredRequests = bookingRequests.filter((req) => req.status === activeTab);

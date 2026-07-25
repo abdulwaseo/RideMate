@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { getAuthToken } from '../utils/token';
 import { useRide } from './RideContext';
 
 export interface Participant {
@@ -77,7 +78,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!user) return;
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
+        const token = getAuthToken();
         const res = await fetch('http://localhost:8000/api/v1/notifications', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -130,8 +131,8 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const fetchBackendRooms = async () => {
       if (!user) return;
       try {
-        const token = localStorage.getItem('ridemate_access_token') || localStorage.getItem('access_token');
-        const res = await fetch('/api/v1/chat/rooms', {
+        const token = getAuthToken();
+        const res = await fetch('http://localhost:8000/api/v1/chat/rooms', {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -150,7 +151,13 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
             lastMessage: r.last_message ? { id: r.last_message.id, text: r.last_message.content, timestamp: r.last_message.created_at, type: 'Text' } : null,
             lastActivity: 'Just now',
           }));
-          setRooms(backendRooms);
+          const uniqueRooms: ChatRoom[] = [];
+          for (const room of backendRooms) {
+            if (!uniqueRooms.some((r) => r.id === room.id || r.pickupArea === room.pickupArea)) {
+              uniqueRooms.push(room);
+            }
+          }
+          setRooms(uniqueRooms);
         }
       } catch (err) {
         console.warn('[CommunicationContext] Error syncing chat rooms:', err);

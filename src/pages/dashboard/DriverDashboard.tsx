@@ -7,9 +7,7 @@ import {
   User, 
   CheckCircle, 
   Star, 
-  Award,
-  ArrowRight,
-  CalendarRange
+  ArrowRight
 } from 'lucide-react';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
@@ -31,11 +29,6 @@ export const DriverDashboard: React.FC = () => {
 
   // Statistics calculation
   const totalCompletedTrips = rideHistory.filter((r) => r.status === 'Completed').length;
-  
-  // Calculate passengers served (sum of total - available for completed rides in history)
-  const totalPassengersServed = rideHistory
-    .filter((r) => r.status === 'Completed')
-    .reduce((sum, r) => sum + (r.totalSeats - r.availableSeats), 0);
 
   return (
     <div className="space-y-8 text-left select-none">
@@ -88,12 +81,12 @@ export const DriverDashboard: React.FC = () => {
               <h3 className="text-xl font-bold text-brand-text">{user?.name || 'Abdul Waseo'}</h3>
               <div className="flex items-center gap-0.5 text-xs text-amber-400 font-bold bg-amber-400/5 px-2 py-0.5 rounded-lg border border-amber-400/10">
                 <Star className="h-3 w-3 fill-current" />
-                <span>4.8</span>
+                <span>5.0</span>
               </div>
               <Badge variant="primary" className="text-[9px]">Verified Domain</Badge>
             </div>
             <p className="text-xs text-brand-textMuted leading-relaxed max-w-md">
-              Dilkusha Corporate Commuter • Verified Employee at <strong className="text-brand-text">{user?.officeName || 'Dilkusha Towers Office'}</strong>
+              Dilkusha Corporate Commuter • Verified Employee at <strong className="text-brand-text">{user?.officeName || 'Dilkusha Towers'}</strong>
             </p>
           </div>
         </Card>
@@ -105,22 +98,20 @@ export const DriverDashboard: React.FC = () => {
           </div>
           <div className="space-y-1.5 flex-1">
             <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wide block">Active Vehicle Details</span>
-            <h4 className="font-bold text-base text-brand-text leading-tight">{user?.vehicleModel || 'Honda Civic 2020'}</h4>
+            <h4 className="font-bold text-base text-brand-text leading-tight">{user?.vehicleModel || 'No Active Vehicle'}</h4>
             <p className="text-xs font-semibold text-brand-accentLight tracking-wider uppercase">
-              Plate: {user?.vehicleRegistrationNumber || 'BEY-789'}
+              Plate: {user?.vehicleRegistrationNumber || 'N/A'}
             </p>
           </div>
         </Card>
       </div>
 
       {/* Grid 2: Statistics counters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
-        <StatCard title="Upcoming Rides" value={activeRide ? 1 : 0} icon={CalendarRange} description="Active ride schedule" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard title="Trips Completed" value={totalCompletedTrips} icon={CheckCircle} description="Total corporate drives" />
         <StatCard title="Seats Remaining" value={activeRide ? activeRide.availableSeats : 0} icon={Users} description="Seats open to match" />
-        <StatCard title="Trips Completed" value={totalCompletedTrips + 11} icon={CheckCircle} description="Total corporate drives" />
-        <StatCard title="Commuters Served" value={totalPassengersServed + 32} icon={Award} description="Coworkers carpooled" />
-        <StatCard title="Acceptance Rate" value={94} suffix="%" icon={CheckCircle} description="Passenger match rate" />
-        <StatCard title="Rating Average" value={4} prefix="4." suffix=" / 5" icon={Star} description="Commuter feedback score" />
+        <StatCard title="Acceptance Rate" value={100} suffix="%" icon={CheckCircle} description="Passenger match rate" />
+        <StatCard title="Rating Average" value={5} prefix="5." suffix=" / 5" icon={Star} description="Commuter feedback score" />
       </div>
 
       {/* Grid 3: Active Ride & Quick Actions */}

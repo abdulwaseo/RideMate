@@ -11,7 +11,6 @@ import {
   LogOut,
   X,
   Plus,
-  MessageSquare,
   Bell,
   Users,
   Compass
@@ -47,7 +46,6 @@ export const Sidebar: React.FC = () => {
     { label: 'My Active Ride', icon: Car, path: '/dashboard/driver/active-ride' },
     { label: 'Ride Requests', icon: Users, path: '/dashboard/driver/requests' },
     { label: 'Ride History', icon: History, path: '/dashboard/driver/history' },
-    { label: 'Chat', icon: MessageSquare, path: '/dashboard/driver/chat' },
     { label: 'Notifications', icon: Bell, path: '/dashboard/driver/notifications' },
     { label: 'Profile', icon: User, path: '/dashboard/driver/profile' },
     { label: 'Settings', icon: Settings, path: '/dashboard/driver/settings' },
@@ -58,7 +56,6 @@ export const Sidebar: React.FC = () => {
     { label: 'Search Ride', icon: Compass, path: '/dashboard/passenger/search' },
     { label: 'My Requests', icon: Users, path: '/dashboard/passenger/requests' },
     { label: 'Ride History', icon: History, path: '/dashboard/passenger/history' },
-    { label: 'Chat', icon: MessageSquare, path: '/dashboard/passenger/chat' },
     { label: 'Notifications', icon: Bell, path: '/dashboard/passenger/notifications' },
     { label: 'Profile', icon: User, path: '/dashboard/passenger/profile' },
     { label: 'Settings', icon: Settings, path: '/dashboard/passenger/settings' },

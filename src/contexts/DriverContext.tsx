@@ -17,6 +17,7 @@ interface DriverContextType {
   completeRide: () => Promise<boolean>;
   acceptRequest: (requestId: string) => Promise<boolean>;
   rejectRequest: (requestId: string) => Promise<boolean>;
+  refreshAllData?: () => Promise<void>;
 }
 
 const DriverContext = createContext<DriverContextType | undefined>(undefined);
@@ -33,14 +34,20 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     cancelRide: centralCancel,
     completeRide: centralComplete,
     acceptBookingRequest,
-    rejectBookingRequest
+    rejectBookingRequest,
+    refreshAllData,
   } = useRide();
 
-  // Active ride — use driverRides (fetched from /api/v1/rides/driver/rides with full driver_summary)
-  // which correctly contains mobile_number. Fall back to filtering rides by user mobile.
+  // Active ride — use driverRides (fetched from /api/v1/rides/driver/rides)
+  // Fall back to matching by mobile or driver.name against the general rides list.
   const activeRide = (
     driverRides.find((ride) => ride.status !== 'Completed' && ride.status !== 'Cancelled')
-    || rides.find((ride) => ride.driverId === (user?.mobileNumber || '') && ride.status !== 'Completed' && ride.status !== 'Cancelled')
+    || rides.find(
+        (ride) =>
+          (ride.driverId === (user?.mobileNumber || '') || ride.driver.name === (user?.name || '')) &&
+          ride.status !== 'Completed' &&
+          ride.status !== 'Cancelled'
+      )
   ) || null;
 
   // History includes all completed or cancelled rides by this driver
@@ -101,6 +108,7 @@ export const DriverProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         completeRide,
         acceptRequest,
         rejectRequest,
+        refreshAllData,
       }}
     >
       {children}

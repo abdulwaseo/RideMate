@@ -6,9 +6,12 @@ import React, {
   useEffect,
   type ReactNode,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { WSEvent } from '../types/websocket';
 import { useSocketEvent } from '../hooks/useSocketEvent';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from './ToastContext';
+import { getAuthToken } from '../utils/token';
 
 export type NotificationCategory =
   | 'Ride'
@@ -87,6 +90,8 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
@@ -98,10 +103,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const apiCall = useCallback(
     async <T,>(method: string, path: string, body?: unknown): Promise<T | null> => {
-      const token =
-        localStorage.getItem('ridemate_access_token') ||
-        localStorage.getItem('access_token') ||
-        '';
+      const token = getAuthToken() || '';
       if (!token) return null;
 
       try {
@@ -260,8 +262,34 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
       if (item && item.id) {
         setNotifications((prev) => [item, ...prev.filter((n) => n.id !== item.id)]);
         setUnreadCount((c) => c + 1);
+
+        let targetUrl = item.action_url;
+        if (!targetUrl && item.data_json) {
+          try {
+            const data = JSON.parse(item.data_json);
+            if (data.type === 'ride_request') targetUrl = '/dashboard/driver/requests';
+            else if (data.type === 'request_accepted' || data.type === 'request_rejected' || data.type === 'ride_cancelled') targetUrl = '/dashboard/passenger/requests';
+            else if (data.type === 'passenger_joined') targetUrl = '/dashboard/driver/active-ride';
+            else if (data.type === 'ride_completed') targetUrl = '/dashboard/passenger/history';
+          } catch {}
+        }
+
+        addToast(
+          'info',
+          item.title || 'New Notification',
+          item.body || '',
+          5000,
+          () => {
+            if (item.id) {
+              markAsRead(item.id);
+            }
+            if (targetUrl) {
+              navigate(targetUrl);
+            }
+          }
+        );
       }
-    }, [])
+    }, [addToast, markAsRead, navigate])
   );
 
   useSocketEvent<Record<string, any>>(

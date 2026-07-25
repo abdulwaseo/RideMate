@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.models.chat import ChatRoom, ChatMessage
-from app.models.booking import Booking
+from app.models.booking import Booking, RideRequest
 from app.models.user import User
 from app.repositories.booking import BookingRepository
 from app.repositories.chat import ChatRepository, MessageRepository
@@ -17,7 +17,7 @@ from app.schemas.chat import (
     ReplyMessageBrief,
     UserParticipant,
 )
-from app.schemas.enums import ConfirmedBookingStatus, MessageType, RideStatus
+from app.schemas.enums import ConfirmedBookingStatus, BookingStatus, MessageType, RideStatus
 
 
 class ChatService:
@@ -32,11 +32,14 @@ class ChatService:
         self.booking_repo = BookingRepository(db)
 
     def get_or_create_room_for_ride(self, ride_id: UUID, driver_user_id: UUID) -> ChatRoom:
-        """Automatically retrieves or creates a ChatRoom when the first booking is confirmed."""
+        """Automatically retrieves or creates a ChatRoom for a ride."""
         existing = self.chat_repo.get_by_ride_id(ride_id)
         if existing:
             return existing
-        return self.chat_repo.create_room(ride_id=ride_id, created_by=driver_user_id)
+        room = self.chat_repo.create_room(ride_id=ride_id, created_by=driver_user_id)
+        self.db.commit()
+        self.db.refresh(room)
+        return room
 
     def list_user_rooms(self, user: User) -> List[ChatRoomResponse]:
         """List all active chat rooms accessible to user."""
@@ -164,14 +167,21 @@ class ChatService:
         return [self._format_message_response(m, user.id) for m in messages]
 
     def _verify_room_access(self, user: User, room: ChatRoom) -> bool:
-        """Check if user is driver or confirmed passenger of the room's ride."""
+        """Check if user is driver or confirmed/accepted passenger of the room's ride."""
         if not room.ride:
             return False
 
+        # 1. Driver verification
         driver_profile = self.driver_repo.get_by_user_id(user.id)
-        if driver_profile and room.ride.driver_profile_id == driver_profile.id:
+        is_driver = (
+            (driver_profile and room.ride.driver_profile_id == driver_profile.id)
+            or (room.ride.driver_profile and room.ride.driver_profile.user_id == user.id)
+            or room.created_by == user.id
+        )
+        if is_driver:
             return True
 
+        # 2. Confirmed Booking verification
         booking = (
             self.db.query(Booking)
             .filter(
@@ -182,7 +192,21 @@ class ChatService:
             )
             .first()
         )
-        return booking is not None
+        if booking:
+            return True
+
+        # 3. Accepted RideRequest verification
+        ride_req = (
+            self.db.query(RideRequest)
+            .filter(
+                RideRequest.ride_id == room.ride_id,
+                RideRequest.passenger_id == user.id,
+                RideRequest.status == BookingStatus.ACCEPTED,
+                RideRequest.is_deleted == False,
+            )
+            .first()
+        )
+        return ride_req is not None
 
     def _format_room_response(self, room: ChatRoom, current_user_id: UUID) -> ChatRoomResponse:
         participants = []

@@ -1,8 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/token';
 
 export type UserRole = 'driver' | 'passenger';
 
 export interface UserType {
+  id?: string;
   name: string;
   mobileNumber: string;
   email?: string;
@@ -38,25 +40,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const sessionUser = sessionStorage.getItem('ridemate_user') || localStorage.getItem('ridemate_user');
     const sessionAuth = sessionStorage.getItem('ridemate_auth') || localStorage.getItem('ridemate_auth');
-    const sessionToken = sessionStorage.getItem('ridemate_access_token') || localStorage.getItem('ridemate_access_token');
+    const sessionToken = getAuthToken();
 
-    if (sessionUser && sessionAuth === 'true' && sessionToken && !sessionToken.startsWith('ridemate_jwt_')) {
-      const parsedUser = JSON.parse(sessionUser) as UserType;
-      
-      sessionStorage.setItem('ridemate_auth', 'true');
-      sessionStorage.setItem('ridemate_user', JSON.stringify(parsedUser));
-      sessionStorage.setItem('ridemate_access_token', sessionToken);
+    if (sessionUser && sessionAuth === 'true' && sessionToken) {
+      try {
+        const parsedUser = JSON.parse(sessionUser) as UserType;
+        
+        sessionStorage.setItem('ridemate_auth', 'true');
+        sessionStorage.setItem('ridemate_user', JSON.stringify(parsedUser));
+        
+        setAuthToken(sessionToken);
 
-      setUser(parsedUser);
-      setRole(parsedUser.role);
-      setIsAuthenticated(true);
-    } else {
-      // Clear legacy mock tokens
-      if (sessionToken?.startsWith('ridemate_jwt_')) {
-        sessionStorage.removeItem('ridemate_access_token');
-        localStorage.removeItem('ridemate_access_token');
-        localStorage.removeItem('access_token');
+        setUser(parsedUser);
+        setRole(parsedUser.role);
+        setIsAuthenticated(true);
+      } catch (err) {
+        clearAuthToken();
       }
+    } else {
+      clearAuthToken();
     }
     setIsLoading(false);
   }, []);
@@ -85,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const effectiveRole = requestedRole || backendRole;
 
           const authUser: UserType = {
+            id: userObj?.id,
             name: userObj?.name || 'Commuter',
             mobileNumber: userObj?.mobile_number || mobileNumber,
             email: userObj?.email,
@@ -95,16 +98,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const token = tokens.access_token;
           const refreshToken = tokens.refresh_token;
 
+          setAuthToken(token, refreshToken);
           sessionStorage.setItem('ridemate_auth', 'true');
           sessionStorage.setItem('ridemate_user', JSON.stringify(authUser));
-          sessionStorage.setItem('ridemate_access_token', token);
-          sessionStorage.setItem('ridemate_refresh_token', refreshToken || '');
-
           localStorage.setItem('ridemate_auth', 'true');
           localStorage.setItem('ridemate_user', JSON.stringify(authUser));
-          localStorage.setItem('ridemate_access_token', token);
-          localStorage.setItem('access_token', token);
-          if (refreshToken) localStorage.setItem('ridemate_refresh_token', refreshToken);
 
           setUser(authUser);
           setRole(effectiveRole);
@@ -147,16 +145,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const token = tokens.access_token;
           const refreshToken = tokens.refresh_token;
 
+          setAuthToken(token, refreshToken);
           sessionStorage.setItem('ridemate_auth', 'true');
           sessionStorage.setItem('ridemate_user', JSON.stringify(userData));
-          sessionStorage.setItem('ridemate_access_token', token);
-          sessionStorage.setItem('ridemate_refresh_token', refreshToken || '');
-
           localStorage.setItem('ridemate_auth', 'true');
           localStorage.setItem('ridemate_user', JSON.stringify(userData));
-          localStorage.setItem('ridemate_access_token', token);
-          localStorage.setItem('access_token', token);
-          if (refreshToken) localStorage.setItem('ridemate_refresh_token', refreshToken);
 
           setUser(userData);
           setRole(userData.role);
@@ -174,17 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    sessionStorage.removeItem('ridemate_auth');
-    sessionStorage.removeItem('ridemate_user');
-    sessionStorage.removeItem('ridemate_access_token');
-    sessionStorage.removeItem('ridemate_refresh_token');
-
-    localStorage.removeItem('ridemate_auth');
-    localStorage.removeItem('ridemate_user');
-    localStorage.removeItem('ridemate_access_token');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('ridemate_refresh_token');
-
+    clearAuthToken();
     setUser(null);
     setRole(null);
     setIsAuthenticated(false);

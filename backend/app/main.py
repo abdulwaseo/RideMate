@@ -23,19 +23,29 @@ app = FastAPI(
 )
 
 # CORS Policy configuration
+cors_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+]
 if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    for o in settings.CORS_ORIGINS:
+        if o != "*" and o not in cors_origins:
+            cors_origins.append(o)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 from app.middleware.rate_limit import RateLimitMiddleware
 
 # Security & Latency Interceptors
-app.add_middleware(RateLimitMiddleware, requests_per_minute=120)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=600)
 app.add_middleware(LoggingMiddleware)
 
 

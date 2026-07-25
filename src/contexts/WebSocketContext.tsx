@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { ConnectionStatus, WSEvent } from '../types/websocket';
 import { socketClient } from '../services/websocket/socketClient';
 import { useAuth } from '../hooks/useAuth';
+import { getAuthToken } from '../utils/token';
 
 interface WebSocketContextType {
   status: ConnectionStatus;
@@ -31,9 +32,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (isAuthenticated) {
-      const authToken =
-        localStorage.getItem('ridemate_access_token') ||
-        localStorage.getItem('access_token');
+      const authToken = getAuthToken();
       if (authToken) {
         socketClient.connect(authToken);
       } else {
@@ -44,33 +43,31 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [isAuthenticated]);
 
-  const sendEvent = (event: WSEvent): boolean => {
+  const sendEvent = useCallback((event: WSEvent): boolean => {
     return socketClient.send(event);
-  };
+  }, []);
 
-  const joinRoom = (roomId: string): void => {
+  const joinRoom = useCallback((roomId: string): void => {
     socketClient.joinRoom(roomId);
     setActiveRooms(socketClient.getSubscribedRooms());
-  };
+  }, []);
 
-  const leaveRoom = (roomId: string): void => {
+  const leaveRoom = useCallback((roomId: string): void => {
     socketClient.leaveRoom(roomId);
     setActiveRooms(socketClient.getSubscribedRooms());
-  };
+  }, []);
 
-  const subscribe = (eventType: string, callback: (event: WSEvent) => void): (() => void) => {
+  const subscribe = useCallback((eventType: string, callback: (event: WSEvent) => void): (() => void) => {
     return socketClient.on(eventType, callback);
-  };
+  }, []);
 
-  const reconnect = (): void => {
+  const reconnect = useCallback((): void => {
     if (!isAuthenticated) return;
-    const authToken =
-      localStorage.getItem('ridemate_access_token') ||
-      localStorage.getItem('access_token');
+    const authToken = getAuthToken();
     if (authToken) {
       socketClient.connect(authToken);
     }
-  };
+  }, [isAuthenticated]);
 
   return (
     <WebSocketContext.Provider

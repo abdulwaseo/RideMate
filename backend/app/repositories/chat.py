@@ -4,11 +4,11 @@ from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, desc
 
-from app.models.booking import Booking
+from app.models.booking import Booking, RideRequest
 from app.models.chat import ChatMessage, ChatRoom, MessageReadStatus
 from app.models.ride import Ride
 from app.models.user import DriverProfile, User
-from app.schemas.enums import ConfirmedBookingStatus, MessageType, RideStatus
+from app.schemas.enums import ConfirmedBookingStatus, BookingStatus, MessageType, RideStatus
 
 
 class ChatRepository:
@@ -40,12 +40,12 @@ class ChatRepository:
         """
         Finds all active chat rooms where user is either:
         1. The publishing driver of the ride.
-        2. A passenger with a CONFIRMED booking on the ride.
+        2. A passenger with a CONFIRMED booking or ACCEPTED request on the ride.
         """
         driver_profile = self.db.query(DriverProfile).filter(DriverProfile.user_id == user_id).first()
         driver_profile_id = driver_profile.id if driver_profile else None
 
-        # Confirmed ride IDs for passenger
+        # Confirmed / Accepted ride IDs for passenger
         confirmed_ride_ids = [
             b.ride_id for b in self.db.query(Booking.ride_id).filter(
                 Booking.passenger_id == user_id,
@@ -53,12 +53,20 @@ class ChatRepository:
                 Booking.is_deleted == False,
             ).all()
         ]
+        accepted_req_ride_ids = [
+            r.ride_id for r in self.db.query(RideRequest.ride_id).filter(
+                RideRequest.passenger_id == user_id,
+                RideRequest.status == BookingStatus.ACCEPTED,
+                RideRequest.is_deleted == False,
+            ).all()
+        ]
+        all_passenger_ride_ids = list(set(confirmed_ride_ids + accepted_req_ride_ids))
 
         filters = []
         if driver_profile_id:
             filters.append(Ride.driver_profile_id == driver_profile_id)
-        if confirmed_ride_ids:
-            filters.append(ChatRoom.ride_id.in_(confirmed_ride_ids))
+        if all_passenger_ride_ids:
+            filters.append(ChatRoom.ride_id.in_(all_passenger_ride_ids))
 
         if not filters:
             return []
@@ -68,7 +76,7 @@ class ChatRepository:
             joinedload(ChatRoom.creator),
         ).join(Ride).filter(
             or_(*filters),
-        ).order_by(ChatRoom.created_at.desc()).all()
+        ).distinct().order_by(ChatRoom.created_at.desc()).all()
 
 
 class MessageRepository:

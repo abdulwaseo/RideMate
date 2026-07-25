@@ -50,20 +50,21 @@ const PublishRideFormInner: React.FC = () => {
     handleSubmit,
     setValue,
     watch,
+    trigger,
     formState: { errors, isValid },
   } = useForm<PublishRideFormValues>({
     resolver: zodResolver(publishRideSchema),
     mode: 'onChange',
     defaultValues: {
       vehicleType: user?.vehicleType || 'Car',
-      vehicleModel: user?.vehicleModel || 'Registered Vehicle',
+      vehicleModel: user?.vehicleModel || '',
       pickupArea: '',
-      destination: 'Dilkusha Towers, Karachi',
+      destination: '',
       meetingPoint: '',
       date: new Date().toISOString().split('T')[0],
       departureTime: defaultDeparture,
-      availableSeats: 3,
-      farePerPassenger: 350,
+      availableSeats: 1,
+      farePerPassenger: 0,
       description: '',
     }
   });
@@ -77,7 +78,7 @@ const PublishRideFormInner: React.FC = () => {
 
   const handlePickupSelect = (location: LocationData) => {
     setSelectedPickup(location);
-    setValue('pickupArea', location.area || location.name || location.formatted_address, { shouldValidate: true });
+    setValue('pickupArea', location.area || location.name || location.formatted_address, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     if (selectedDestination) {
       calculateRoute(location, selectedDestination);
     }
@@ -85,7 +86,7 @@ const PublishRideFormInner: React.FC = () => {
 
   const handleDestinationSelect = (location: LocationData) => {
     setSelectedDestination(location);
-    setValue('destination', location.name || location.formatted_address, { shouldValidate: true });
+    setValue('destination', location.name || location.formatted_address, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     if (selectedPickup) {
       calculateRoute(selectedPickup, location);
     }
@@ -112,6 +113,7 @@ const PublishRideFormInner: React.FC = () => {
         navigate('/dashboard/driver/active-ride');
       } else {
         setErrorMsg('Could not publish ride. Please verify parameters.');
+        trigger(['pickupArea', 'destination']);
       }
     } catch (err) {
       setErrorMsg('Failed to publish the ride. Please check connection.');

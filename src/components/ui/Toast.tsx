@@ -10,7 +10,7 @@ interface ToastProps {
 }
 
 export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
-  const { id, type, title, description } = toast;
+  const { id, type, title, description, onClick } = toast;
 
   const iconMap = {
     success: <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />,
@@ -26,6 +26,13 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
     info: 'border-sky-500/35 bg-sky-950/20 text-sky-50',
   };
 
+  const handleToastClick = () => {
+    if (onClick) {
+      onClick();
+      onDismiss(id);
+    }
+  };
+
   return (
     <motion.div
       layout
@@ -33,8 +40,10 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
       animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: 30, scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      onClick={handleToastClick}
       className={cn(
         "flex gap-3 p-4 rounded-xl border backdrop-blur-md shadow-glass w-full max-w-sm relative text-left overflow-hidden z-[9999]",
+        onClick ? "cursor-pointer hover:scale-[1.02] transition-transform" : "",
         borderColors[type]
       )}
     >

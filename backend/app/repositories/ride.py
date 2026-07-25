@@ -108,7 +108,8 @@ class RideRepository:
             joinedload(Ride.driver_profile).joinedload(DriverProfile.user),
             joinedload(Ride.vehicle),
         ).filter(
-            Ride.status.in_([RideStatus.UPCOMING, RideStatus.FULL]),
+            Ride.status == RideStatus.UPCOMING,
+            Ride.available_seats > 0,
             Ride.is_deleted == False,
         )
 

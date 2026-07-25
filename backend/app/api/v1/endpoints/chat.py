@@ -2,6 +2,7 @@ from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from loguru import logger
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -88,6 +89,28 @@ def send_chat_message(
         message_type=payload.message_type,
         reply_to_message_id=payload.reply_to_message_id,
     )
+
+    try:
+        import asyncio
+        from app.schemas.websocket import WSEvent, WSEventType
+        from app.websocket.connection_manager import manager
+
+        channel_id = f"chat:{room_id}"
+        broadcast_event = WSEvent(
+            event_type=WSEventType.MESSAGE_RECEIVED.value,
+            room_id=channel_id,
+            payload=msg_resp.model_dump(mode="json"),
+        )
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(manager.broadcast_to_room(channel_id, broadcast_event))
+
+            room_detail = svc.get_room_detail(current_user, room_id)
+            for p in room_detail.participants:
+                loop.create_task(manager.broadcast_to_room(f"user:{p.id}", broadcast_event))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast error on REST send message: {e}")
+
     return SuccessResponse(message="Message posted successfully.", data=msg_resp)
 
 

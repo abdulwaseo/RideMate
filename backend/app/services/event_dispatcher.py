@@ -23,6 +23,8 @@ class EventDispatcher(ABC):
         body: str,
         category: NotificationCategory = NotificationCategory.RIDE,
         priority: NotificationPriority = NotificationPriority.MEDIUM,
+        action_url: Optional[str] = None,
+        data_json: Optional[str] = None,
     ) -> None:
         pass
 
@@ -50,6 +52,8 @@ class InAppEventDispatcher(EventDispatcher):
         body: str,
         category: NotificationCategory = NotificationCategory.RIDE,
         priority: NotificationPriority = NotificationPriority.MEDIUM,
+        action_url: Optional[str] = None,
+        data_json: Optional[str] = None,
     ) -> None:
         self.notif_repo.create(
             user_id=user_id,
@@ -57,6 +61,8 @@ class InAppEventDispatcher(EventDispatcher):
             body=body,
             category=category,
             priority=priority,
+            action_url=action_url,
+            data_json=data_json,
         )
 
     def broadcast_system_message(

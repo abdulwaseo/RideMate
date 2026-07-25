@@ -1,16 +1,19 @@
+import json
 from datetime import date, datetime, time, timezone
 from typing import List, Optional, Tuple
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from loguru import logger
 
+from app.models.booking import Booking, RideRequest
 from app.models.ride import Ride
 from app.models.user import User, DriverProfile
 from app.models.vehicle import Vehicle
 from app.repositories.driver import DriverRepository
 from app.repositories.vehicle import VehicleRepository
 from app.repositories.ride import RideRepository
-from app.schemas.enums import RideStatus, VehicleType, VerificationStatus
+from app.schemas.enums import RideStatus, VehicleType, VerificationStatus, ConfirmedBookingStatus, BookingStatus
 from app.schemas.ride import (
     DriverSummary,
     RideCreate,
@@ -139,6 +142,30 @@ class RideService:
         )
 
         self.db.commit()
+
+        # Provision ChatRoom for the published ride automatically
+        try:
+            from app.services.chat import ChatService
+            chat_svc = ChatService(self.db)
+            chat_room = chat_svc.get_or_create_room_for_ride(ride.id, user.id)
+
+            from app.schemas.websocket import WSEvent, WSEventType
+            from app.websocket.connection_manager import manager
+            import asyncio
+
+            room_fmt = chat_svc._format_room_response(chat_room, user.id)
+            event = WSEvent(
+                event_type=WSEventType.ROOM_CREATED.value,
+                sender={"user_id": str(user.id), "role": "driver"},
+                room_id=f"chat:{chat_room.id}",
+                payload=room_fmt.model_dump(mode="json"),
+            )
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(manager.broadcast_to_room(f"user:{user.id}", event))
+        except Exception as e:
+            logger.warning(f"Failed to provision chat room on ride creation: {e}")
+
         return self.get_ride_detail(ride.id)
 
     def get_ride_detail(self, ride_id: UUID) -> RideResponse:
@@ -262,16 +289,16 @@ class RideService:
         return self._format_ride_response(updated)
 
     def cancel_ride(self, user: User, ride_id: UUID) -> RideResponse:
-        """Cancel an upcoming or active ride."""
+        """Cancel an upcoming or active ride, cancelling all accepted passenger bookings and notifying them."""
         ride = self.ride_repo.get_by_id(ride_id)
         if not ride:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ride not found.")
 
-        driver = self._get_verified_driver(user)
-        if ride.driver_profile_id != driver.id:
+        driver = self.driver_repo.get_by_user_id(user.id)
+        if not driver or ride.driver_profile_id != driver.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to cancel this ride.",
+                detail="[RIDE_006] Passengers are not allowed to cancel a published ride. Only the driver who published the ride can cancel it.",
             )
 
         if ride.status in [RideStatus.COMPLETED, RideStatus.CANCELLED]:
@@ -281,8 +308,119 @@ class RideService:
             )
 
         ride.status = RideStatus.CANCELLED
+
+        # 1. Cancel all confirmed bookings & notify passengers
+        bookings = (
+            self.db.query(Booking)
+            .filter(
+                Booking.ride_id == ride.id,
+                Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
+                Booking.is_deleted == False,
+            )
+            .all()
+        )
+
+        from app.services.event_dispatcher import InAppEventDispatcher
+        from app.schemas.enums import NotificationCategory, NotificationPriority
+        from app.schemas.websocket import WSEvent, WSEventType
+        from app.websocket.connection_manager import manager, safe_broadcast_to_room
+        from app.services.chat import ChatService
+
+        dispatcher = InAppEventDispatcher(self.db)
+        affected_passenger_ids = []
+
+        # 1. Update Booking status for confirmed bookings
+        for b in bookings:
+            b.booking_status = ConfirmedBookingStatus.CANCELLED
+            b_pid_str = str(b.passenger_id)
+            if b_pid_str not in affected_passenger_ids:
+                affected_passenger_ids.append(b_pid_str)
+
+        # 2. Cancel ALL ride requests (both PENDING and ACCEPTED) & notify passengers
+        all_requests = (
+            self.db.query(RideRequest)
+            .filter(
+                RideRequest.ride_id == ride.id,
+                RideRequest.is_deleted == False,
+            )
+            .all()
+        )
+        for r in all_requests:
+            r.status = BookingStatus.CANCELLED
+            p_id_str = str(r.passenger_id)
+            if p_id_str not in affected_passenger_ids:
+                affected_passenger_ids.append(p_id_str)
+
+            notif = dispatcher.notif_repo.create(
+                user_id=r.passenger_id,
+                title="Ride Cancelled by Driver",
+                body=f"The driver has cancelled the commute to {ride.destination_area}.",
+                category=NotificationCategory.BOOKING,
+                priority=NotificationPriority.HIGH,
+                action_url="/dashboard/passenger/requests",
+                data_json=json.dumps({"type": "ride_cancelled", "ride_id": str(ride.id), "request_id": str(r.id)}),
+            )
+
+            # Live notification created event
+            notif_event = WSEvent(
+                event_type=WSEventType.NOTIFICATION_CREATED.value,
+                payload={
+                    "id": str(notif.id),
+                    "title": notif.title,
+                    "body": notif.body,
+                    "category": notif.category.value,
+                    "priority": notif.priority.value,
+                    "is_read": False,
+                    "action_url": notif.action_url,
+                    "data_json": notif.data_json,
+                    "created_at": notif.created_at.isoformat(),
+                },
+            )
+            safe_broadcast_to_room(f"user:{r.passenger_id}", notif_event)
+
+            # Live booking_cancelled event to sync passenger UI tab status in real-time
+            booking_cancelled_event = WSEvent(
+                event_type=WSEventType.BOOKING_CANCELLED.value,
+                payload={
+                    "id": str(r.id),
+                    "request_id": str(r.id),
+                    "ride_id": str(ride.id),
+                    "status": "Cancelled",
+                },
+            )
+            safe_broadcast_to_room(f"user:{r.passenger_id}", booking_cancelled_event)
+
+        # 3. Post system message to chat room if exists
+        try:
+            chat_svc = ChatService(self.db)
+            chat_room = chat_svc.chat_repo.get_by_ride_id(ride.id)
+            if chat_room:
+                dispatcher.broadcast_system_message(
+                    chat_room.id,
+                    "The driver has cancelled this ride. The ride and all bookings are now closed."
+                )
+        except Exception as e:
+            logger.warning(f"Failed to post system cancellation message: {e}")
+
         self.db.commit()
-        self.db.refresh(ride)
+
+        # 4. Broadcast RIDE_UPDATE WebSocket event to driver & all affected passengers
+        try:
+            cancel_event = WSEvent(
+                event_type=WSEventType.RIDE_UPDATE.value,
+                sender={"user_id": str(user.id), "role": "driver"},
+                payload={
+                    "ride_id": str(ride.id),
+                    "status": "Cancelled",
+                    "message": "The driver has cancelled the ride.",
+                },
+            )
+            safe_broadcast_to_room(f"user:{user.id}", cancel_event)
+            for pid in affected_passenger_ids:
+                safe_broadcast_to_room(f"user:{pid}", cancel_event)
+        except Exception as e:
+            logger.warning(f"Failed to broadcast ride cancellation WebSocket events: {e}")
+
         return self._format_ride_response(ride)
 
     def complete_ride(self, user: User, ride_id: UUID) -> RideResponse:
@@ -305,8 +443,75 @@ class RideService:
             )
 
         ride.status = RideStatus.COMPLETED
+
+        # 1. Update all confirmed passenger bookings to COMPLETED
+        bookings = (
+            self.db.query(Booking)
+            .filter(
+                Booking.ride_id == ride.id,
+                Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
+                Booking.is_deleted == False,
+            )
+            .all()
+        )
+
+        from app.services.event_dispatcher import InAppEventDispatcher
+        from app.schemas.enums import NotificationCategory, NotificationPriority
+        from app.schemas.websocket import WSEvent, WSEventType
+        from app.websocket.connection_manager import manager
+        from app.services.chat import ChatService
+        import asyncio
+
+        dispatcher = InAppEventDispatcher(self.db)
+        affected_passenger_ids = []
+
+        for b in bookings:
+            b.booking_status = ConfirmedBookingStatus.COMPLETED
+            affected_passenger_ids.append(str(b.passenger_id))
+            dispatcher.dispatch_notification(
+                user_id=b.passenger_id,
+                title="Ride Completed by Driver",
+                body=f"The driver has completed your ride to {ride.destination_area}. Thank you for commuting with RideMate!",
+                category=NotificationCategory.BOOKING,
+                priority=NotificationPriority.HIGH,
+                action_url="/dashboard/passenger/history",
+                data_json=json.dumps({"type": "ride_completed", "ride_id": str(ride.id)}),
+            )
+
+        # 2. Post system completion message into chat room if exists
+        try:
+            chat_svc = ChatService(self.db)
+            chat_room = chat_svc.chat_repo.get_by_ride_id(ride.id)
+            if chat_room:
+                dispatcher.broadcast_system_message(
+                    chat_room.id,
+                    "The driver has completed this ride. Thank you everyone for commuting together!"
+                )
+        except Exception as e:
+            logger.warning(f"Failed to post system completion message: {e}")
+
         self.db.commit()
         self.db.refresh(ride)
+
+        # 3. Broadcast WebSocket events to driver & all affected passengers
+        try:
+            complete_event = WSEvent(
+                event_type=WSEventType.RIDE_UPDATE.value,
+                sender={"user_id": str(user.id), "role": "driver"},
+                payload={
+                    "ride_id": str(ride.id),
+                    "status": "Completed",
+                    "message": "The driver has completed the ride.",
+                },
+            )
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(manager.broadcast_to_room(f"user:{user.id}", complete_event))
+                for pid in affected_passenger_ids:
+                    loop.create_task(manager.broadcast_to_room(f"user:{pid}", complete_event))
+        except Exception as e:
+            logger.warning(f"Failed to broadcast ride completion WebSocket events: {e}")
+
         return self._format_ride_response(ride)
 
     def delete_ride(self, user: User, ride_id: UUID) -> None:

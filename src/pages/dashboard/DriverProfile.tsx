@@ -64,8 +64,8 @@ export const DriverProfile: React.FC = () => {
         officeName: user.officeName || '',
         vehicleModel: user.vehicleModel || '',
         vehicleRegistrationNumber: user.vehicleRegistrationNumber || '',
-        emergencyName: localStorage.getItem('ridemate_emergency_name') || 'Muhammad Ali',
-        emergencyPhone: localStorage.getItem('ridemate_emergency_phone') || '+92 300 9998887',
+        emergencyName: localStorage.getItem('ridemate_emergency_name') || '',
+        emergencyPhone: localStorage.getItem('ridemate_emergency_phone') || '',
       });
     }
   }, [user, reset, showEditModal]);
@@ -116,7 +116,7 @@ export const DriverProfile: React.FC = () => {
     !!user?.officeName,
     !!user?.vehicleModel,
     !!user?.vehicleRegistrationNumber,
-    !!localStorage.getItem('ridemate_emergency_name') || true,
+    !!localStorage.getItem('ridemate_emergency_name'),
   ];
   const completionPercentage = Math.round((completionStats.filter(Boolean).length / completionStats.length) * 100);
 
@@ -164,7 +164,7 @@ export const DriverProfile: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 w-full text-xs pt-1">
               <div className="text-center">
                 <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wider block">Trips Served</span>
-                <strong className="text-brand-text font-semibold">{completedCount + 12} Drives</strong>
+                <strong className="text-brand-text font-semibold">{completedCount} Drives</strong>
               </div>
               <div className="text-center">
                 <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wider block">Member Since</span>
@@ -199,19 +199,19 @@ export const DriverProfile: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Mobile Number</span>
-                <span className="text-brand-text font-semibold">{user?.mobileNumber || '+92 300 1234567'}</span>
+                <span className="text-brand-text font-semibold">{user?.mobileNumber || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Office / Company</span>
-                <span className="text-brand-text font-semibold">{user?.officeName || 'Dilkusha Towers office'}</span>
+                <span className="text-brand-text font-semibold">{user?.officeName || 'Dilkusha Towers'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Corporate Email</span>
-                <span className="text-brand-text font-semibold">{user?.email || 'waseo@company.com (Mock)'}</span>
+                <span className="text-brand-text font-semibold">{user?.email || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">CNIC Number</span>
-                <span className="text-brand-text font-semibold">{user?.cnicNumber || '42101-1234567-1'}</span>
+                <span className="text-brand-text font-semibold">{user?.cnicNumber || 'N/A'}</span>
               </div>
             </div>
           </Card>
@@ -232,12 +232,12 @@ export const DriverProfile: React.FC = () => {
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Model Brand</span>
-                <span className="text-brand-text font-semibold">{user?.vehicleModel || 'Honda Civic 2020'}</span>
+                <span className="text-brand-text font-semibold">{user?.vehicleModel || 'N/A'}</span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Plate Registration</span>
                 <span className="text-brand-accentLight font-semibold uppercase tracking-wider">
-                  {user?.vehicleRegistrationNumber || 'BEY-789'}
+                  {user?.vehicleRegistrationNumber || 'N/A'}
                 </span>
               </div>
             </div>
@@ -246,7 +246,7 @@ export const DriverProfile: React.FC = () => {
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Driving License Number</span>
                 <span className="text-brand-text font-semibold uppercase tracking-wider">
-                  {user?.licenseNumber || 'KC-123456'}
+                  {user?.licenseNumber || 'N/A'}
                 </span>
               </div>
             </div>
@@ -262,13 +262,13 @@ export const DriverProfile: React.FC = () => {
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Contact Name</span>
                 <span className="text-brand-text font-semibold">
-                  {localStorage.getItem('ridemate_emergency_name') || 'Muhammad Ali'}
+                  {localStorage.getItem('ridemate_emergency_name') || 'Not Set'}
                 </span>
               </div>
               <div>
                 <span className="text-brand-muted block uppercase text-[9px] tracking-wide mb-0.5">Contact Phone</span>
                 <span className="text-brand-text font-semibold">
-                  {localStorage.getItem('ridemate_emergency_phone') || '+92 300 9998887'}
+                  {localStorage.getItem('ridemate_emergency_phone') || 'Not Set'}
                 </span>
               </div>
             </div>
@@ -280,21 +280,23 @@ export const DriverProfile: React.FC = () => {
               Recent Activity Feed
             </h4>
             <div className="space-y-3.5">
-              {[
-                { label: 'Published a ride to Dilkusha Towers', time: 'Today, 08:30 AM', icon: <Navigation className="h-4 w-4 text-brand-primaryLight" /> },
-                { label: 'Accepted booking request from Zainab', time: 'Yesterday, 04:45 PM', icon: <User className="h-4 w-4 text-brand-accentLight" /> },
-                { label: 'Completed commute serving 3 coworkers', time: '2 days ago', icon: <ShieldCheck className="h-4 w-4 text-blue-400" /> },
-              ].map((act, idx) => (
-                <div key={idx} className="flex gap-3 text-xs text-left items-start">
-                  <div className="p-1.5 rounded-lg border border-brand-border/40 bg-white/[0.01]">
-                    {act.icon}
+              {rideHistory.length > 0 ? (
+                rideHistory.slice(0, 5).map((ride) => (
+                  <div key={ride.id} className="flex gap-3 text-xs text-left items-start">
+                    <div className="p-1.5 rounded-lg border border-brand-border/40 bg-white/[0.01]">
+                      <Navigation className="h-4 w-4 text-brand-primaryLight" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-brand-text">
+                        {ride.pickupArea} → {ride.destination} ({ride.status})
+                      </p>
+                      <p className="text-[9px] text-brand-muted">{ride.date} {ride.departureTime}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-brand-text">{act.label}</p>
-                    <p className="text-[9px] text-brand-muted">{act.time}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-xs text-brand-muted italic">No recent drive activity recorded.</p>
+              )}
             </div>
           </Card>
 

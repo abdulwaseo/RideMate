@@ -7,9 +7,7 @@ import {
   User, 
   CheckCircle, 
   Star, 
-  Award,
   ArrowRight,
-  TrendingDown,
   Activity,
   Milestone
 } from 'lucide-react';
@@ -94,7 +92,7 @@ export const PassengerDashboard: React.FC = () => {
             <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wide block">Carbon Offset Rating</span>
             <h4 className="font-bold text-base text-brand-text leading-tight">Eco-Commuter Bronze</h4>
             <p className="text-xs font-semibold text-brand-primaryLight tracking-wider uppercase">
-              12 Kg CO₂ Saved (Mock)
+              0 Kg CO₂ Saved
             </p>
           </div>
         </Card>
@@ -102,13 +100,11 @@ export const PassengerDashboard: React.FC = () => {
       </div>
 
       {/* Grid 2: Statistics metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-5">
-        <StatCard title="Total Commutes" value={completedTripsCount + 12} icon={Milestone} description="Total carpools matched" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard title="Total Commutes" value={completedTripsCount} icon={Milestone} description="Total carpools matched" />
         <StatCard title="Upcoming Trips" value={upcomingRide ? 1 : 0} icon={Compass} description="Confirmed schedules today" />
-        <StatCard title="Completed Rides" value={completedTripsCount + 10} icon={CheckCircle} description="Trips checked-in" />
-        <StatCard title="Saved Fuel (Est)" value={28} suffix=" L" icon={Award} description="Fuel saved by carpooling" />
-        <StatCard title="Money Saved" value={7200} suffix=" PKR" icon={TrendingDown} description="Saved vs private cabs" />
-        <StatCard title="Driver Ratings Given" value={4} prefix="4." suffix=" / 5" icon={Star} description="Avg driver score given" />
+        <StatCard title="Completed Rides" value={completedTripsCount} icon={CheckCircle} description="Trips checked-in" />
+        <StatCard title="Driver Ratings Given" value={5} prefix="5." suffix=" / 5" icon={Star} description="Avg driver score given" />
       </div>
 
       {/* Grid 3: Upcoming ride & Quick Actions */}

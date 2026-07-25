@@ -27,6 +27,9 @@ export interface ChatMessage {
   read_count?: number;
   read_by_me?: boolean;
   created_at: string;
+  status?: 'sending' | 'sent' | 'failed';
+  temp_id?: string;
+  client_temp_id?: string;
 }
 
 export interface ChatRoom {

@@ -65,7 +65,6 @@ export const DriverRegisterPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      // Mock register flow
       await registerAuth({
         name: values.fullName,
         mobileNumber: values.mobileNumber,
