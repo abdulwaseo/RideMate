@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any, Optional, Union
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from app.core.config import settings
