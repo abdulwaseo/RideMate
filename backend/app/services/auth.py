@@ -48,6 +48,8 @@ class AuthService:
             mobile_number=payload.mobile_number,
             hashed_password=hashed_pw,
             office_name=payload.office_name,
+            cnic_number=payload.cnic_number,
+            date_of_birth=payload.date_of_birth,
         )
 
         # Every new account gets a PassengerProfile by default

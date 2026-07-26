@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
-// Pakistani mobile number regex
-// Matches: 03001234567, 923001234567, +923001234567, 3001234567
-const pakMobileRegex = /^((\+92)|(92)|(0092)|0)?3\d{9}$/;
+// Pakistani mobile number regex (local format: 03001234567, 11 digits starting with 03)
+const pakMobileRegex = /^03\d{9}$/;
 
 // Pakistani CNIC format regex (5 digits, dash, 7 digits, dash, 1 digit)
 // Matches: 42101-1234567-1
@@ -13,11 +12,34 @@ export const passwordSchema = z.string()
   .min(8, 'Password must be at least 8 characters long')
   .refine((val) => /[A-Z]/.test(val), { message: 'Password must contain at least one uppercase letter' })
   .refine((val) => /[a-z]/.test(val), { message: 'Password must contain at least one lowercase letter' })
-  .refine((val) => /[0-9]/.test(val), { message: 'Password must contain at least one number' });
+  .refine((val) => /[0-9]/.test(val), { message: 'Password must contain at least one number' })
+  .refine((val) => /[^A-Za-z0-9]/.test(val), { message: 'Password must contain at least one special character (!@#$%^&*)' });
+
+export const fullNameSchema = z.string()
+  .min(3, 'Full name must be at least 3 characters long')
+  .regex(/^[a-zA-Z\s'.-]+$/, 'Full name can only contain letters, spaces, hyphens, and apostrophes');
 
 export const mobileSchema = z.string()
   .min(1, 'Mobile number is required')
-  .refine((val) => pakMobileRegex.test(val), { message: 'Enter a valid Pakistani mobile number (e.g., 03001234567)' });
+  .refine((val) => pakMobileRegex.test(val), { message: 'Enter a valid 11-digit Pakistani mobile number starting with 03 (e.g., 03001234567)' });
+
+export const dateOfBirthSchema = z.string()
+  .min(1, 'Date of birth is required')
+  .refine((val) => {
+    const birthDate = new Date(val);
+    if (isNaN(birthDate.getTime())) return false;
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age >= 18;
+  }, { message: 'You must be at least 18 years old to register.' });
+
+export const cnicSchema = z.string()
+  .min(1, 'CNIC number is required')
+  .refine((val) => cnicRegex.test(val), { message: 'Enter CNIC in 12345-1234567-1 format' });
 
 // Login Validation Schema
 export const loginSchema = z.object({
@@ -28,8 +50,10 @@ export const loginSchema = z.object({
 
 // Passenger Registration Schema
 export const passengerRegisterSchema = z.object({
-  fullName: z.string().min(3, 'Full name must be at least 3 characters long'),
+  fullName: fullNameSchema,
+  dateOfBirth: dateOfBirthSchema,
   mobileNumber: mobileSchema,
+  cnicNumber: cnicSchema,
   email: z.string().email('Enter a valid email address').optional().or(z.literal('')),
   officeName: z.string().optional().or(z.literal('')),
   password: passwordSchema,
@@ -44,15 +68,16 @@ export const passengerRegisterSchema = z.object({
 
 // Driver Registration Schema
 export const driverRegisterSchema = z.object({
-  fullName: z.string().min(3, 'Full name must be at least 3 characters long'),
+  fullName: fullNameSchema,
+  dateOfBirth: dateOfBirthSchema,
   mobileNumber: mobileSchema,
   email: z.string().email('Enter a valid email address').optional().or(z.literal('')),
-  cnicNumber: z.string()
-    .min(1, 'CNIC number is required')
-    .refine((val) => cnicRegex.test(val), { message: 'Enter CNIC in 12345-1234567-1 format' }),
+  cnicNumber: cnicSchema,
   licenseNumber: z.string().min(5, 'Driving license number is required'),
   vehicleType: z.union([z.literal('Car'), z.literal('Bike')]),
-  vehicleModel: z.string().min(2, 'Vehicle model is required (e.g. Corolla 2022)'),
+  vehicleManufacturer: z.string().min(2, 'Manufacturer/Brand is required (e.g. Toyota, Honda, Suzuki)'),
+  vehicleModel: z.string().min(1, 'Vehicle model is required (e.g. Corolla 2022)'),
+  vehicleColor: z.string().min(2, 'Vehicle color is required (e.g. White, Silver, Black)'),
   vehicleRegistrationNumber: z.string().min(3, 'Vehicle registration plate number is required'),
   officeName: z.string().optional().or(z.literal('')),
   password: passwordSchema,

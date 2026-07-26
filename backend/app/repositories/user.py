@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -59,12 +59,16 @@ class UserRepository:
         mobile_number: str,
         hashed_password: str,
         office_name: Optional[str] = None,
+        cnic_number: Optional[str] = None,
+        date_of_birth: Optional[date] = None,
     ) -> User:
         user = User(
             name=name,
             mobile_number=mobile_number,
             hashed_password=hashed_password,
             office_name=office_name,
+            cnic_number=cnic_number,
+            date_of_birth=date_of_birth,
         )
         self.db.add(user)
         self.db.flush()  # get id before committing

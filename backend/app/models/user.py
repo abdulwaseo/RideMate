@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Enum, ForeignKey
+from sqlalchemy import Column, String, Boolean, Enum, ForeignKey, Date
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin
 from app.schemas.enums import UserRole, VerificationStatus
@@ -15,6 +15,7 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     mobile_number = Column(String(20), unique=True, index=True, nullable=False)
     office_name = Column(String(100), nullable=True)
     cnic_number = Column(String(20), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
     
     role = Column(
         Enum(UserRole),

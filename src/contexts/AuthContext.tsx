@@ -11,10 +11,19 @@ export interface UserType {
   role: UserRole;
   officeName?: string;
   cnicNumber?: string;
+  dateOfBirth?: string;
   licenseNumber?: string;
   vehicleType?: 'Car' | 'Bike';
+  vehicleManufacturer?: string;
   vehicleModel?: string;
+  vehicleColor?: string;
   vehicleRegistrationNumber?: string;
+}
+
+export interface RegisterResult {
+  success: boolean;
+  driverProfileFailed?: boolean;
+  errorMsg?: string;
 }
 
 interface AuthContextType {
@@ -24,7 +33,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (mobileNumber: string, password: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
-  register: (userData: UserType & { password?: string }) => Promise<boolean>;
+  register: (userData: UserType & { password?: string }) => Promise<RegisterResult>;
   updateUser: (updatedData: Partial<UserType>) => void;
 }
 
@@ -121,9 +130,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
-  const register = async (userData: UserType & { password?: string }): Promise<boolean> => {
+  const register = async (userData: UserType & { password?: string }): Promise<RegisterResult> => {
     setIsLoading(true);
     const pwd = userData.password || 'RideMate@2026';
+    let driverProfileFailed = false;
 
     try {
       const res = await fetch('http://localhost:8000/api/v1/auth/register', {
@@ -134,6 +144,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           mobile_number: userData.mobileNumber,
           password: pwd,
           office_name: userData.officeName || 'Dilkusha Towers',
+          cnic_number: userData.cnicNumber || undefined,
+          date_of_birth: userData.dateOfBirth || undefined,
         }),
       });
 
@@ -151,19 +163,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('ridemate_auth', 'true');
           localStorage.setItem('ridemate_user', JSON.stringify(userData));
 
+          // If registering as a driver with CNIC & License, provision DriverProfile
+          if (userData.role === 'driver' && userData.cnicNumber && userData.licenseNumber) {
+            try {
+              const driverRes = await fetch('http://localhost:8000/api/v1/drivers/profile', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  cnic_number: userData.cnicNumber,
+                  license_number: userData.licenseNumber,
+                }),
+              });
+
+              if (driverRes.ok) {
+                // Provision Vehicle if registered with submitted manufacturer & color
+                if (userData.vehicleRegistrationNumber) {
+                  if (
+                    !userData.vehicleManufacturer ||
+                    !userData.vehicleModel ||
+                    !userData.vehicleColor
+                  ) {
+                    console.error('[AuthContext] Missing required vehicle fields for vehicle creation.', {
+                      manufacturer: userData.vehicleManufacturer,
+                      model: userData.vehicleModel,
+                      color: userData.vehicleColor,
+                    });
+                    driverProfileFailed = true;
+                  } else {
+                    const vehRes = await fetch('http://localhost:8000/api/v1/vehicles', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        vehicle_type: userData.vehicleType === 'Bike' ? 'Bike' : 'Car',
+                        manufacturer: userData.vehicleManufacturer,
+                        model: userData.vehicleModel,
+                        registration_number: userData.vehicleRegistrationNumber,
+                        color: userData.vehicleColor,
+                        seat_capacity: userData.vehicleType === 'Bike' ? 1 : 4,
+                        is_active: true,
+                      }),
+                    });
+                    if (!vehRes.ok) {
+                      driverProfileFailed = true;
+                    }
+                  }
+                }
+              } else {
+                driverProfileFailed = true;
+              }
+            } catch (driverErr) {
+              console.warn('[AuthContext] Driver profile auto-provision error:', driverErr);
+              driverProfileFailed = true;
+            }
+          }
+
           setUser(userData);
           setRole(userData.role);
           setIsAuthenticated(true);
           setIsLoading(false);
-          return true;
+          return { success: true, driverProfileFailed };
         }
+      } else {
+        const json = await res.json().catch(() => ({}));
+        const msg = json.detail || json.message || 'Registration rejected by backend server.';
+        setIsLoading(false);
+        return { success: false, errorMsg: msg };
       }
     } catch (err) {
       console.warn('[AuthContext] Backend registration call failed:', err);
     }
 
     setIsLoading(false);
-    return false;
+    return { success: false, errorMsg: 'Unable to connect to authentication server.' };
   };
 
   const logout = () => {

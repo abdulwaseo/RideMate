@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { User, Phone, Mail, Building, CheckCircle, ArrowRight } from 'lucide-react';
+import { User, Phone, Mail, Building, CheckCircle, ArrowRight, FileText, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AuthLayout } from '../../components/auth/AuthLayout';
 import { AuthCard } from '../../components/auth/AuthCard';
@@ -33,7 +33,9 @@ export const PassengerRegisterPage: React.FC = () => {
     mode: 'onChange',
     defaultValues: {
       fullName: '',
+      dateOfBirth: '',
       mobileNumber: '',
+      cnicNumber: '',
       email: '',
       officeName: '',
       password: '',
@@ -48,15 +50,21 @@ export const PassengerRegisterPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      await registerAuth({
+      const res = await registerAuth({
         name: values.fullName,
+        dateOfBirth: values.dateOfBirth,
         mobileNumber: values.mobileNumber,
+        cnicNumber: values.cnicNumber || undefined,
         email: values.email || undefined,
         officeName: values.officeName || undefined,
+        password: values.password,
         role: 'passenger',
       });
-      // Show success screen
-      setIsRegistered(true);
+      if (res.success) {
+        setIsRegistered(true);
+      } else {
+        setErrorMsg(res.errorMsg || 'Registration failed. Please check details and try again.');
+      }
     } catch (err) {
       setErrorMsg('Registration failed. Please check details and try again.');
     } finally {
@@ -118,7 +126,18 @@ export const PassengerRegisterPage: React.FC = () => {
               leftIcon={<User className="h-4.5 w-4.5" />}
               error={errors.fullName?.message}
               disabled={isSubmitting}
+              inputFilter="name"
               {...register('fullName')}
+            />
+
+            {/* Date of Birth */}
+            <Input
+              label="Date of Birth"
+              type="date"
+              leftIcon={<Calendar className="h-4.5 w-4.5" />}
+              error={errors.dateOfBirth?.message}
+              disabled={isSubmitting}
+              {...register('dateOfBirth')}
             />
 
             {/* Mobile Number */}
@@ -128,7 +147,19 @@ export const PassengerRegisterPage: React.FC = () => {
               leftIcon={<Phone className="h-4.5 w-4.5" />}
               error={errors.mobileNumber?.message}
               disabled={isSubmitting}
+              inputFilter="mobile"
               {...register('mobileNumber')}
+            />
+
+            {/* CNIC Number */}
+            <Input
+              label="CNIC Number"
+              placeholder="e.g. 42101-1234567-1"
+              leftIcon={<FileText className="h-4.5 w-4.5" />}
+              error={errors.cnicNumber?.message}
+              disabled={isSubmitting}
+              inputFilter="cnic"
+              {...register('cnicNumber')}
             />
 
             {/* Email (Optional) */}

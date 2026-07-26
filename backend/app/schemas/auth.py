@@ -1,5 +1,5 @@
 import re
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
@@ -53,11 +53,33 @@ class RegisterRequest(BaseModel):
         examples=["Dilkusha Towers"],
         description="Optional office / company name.",
     )
+    cnic_number: Optional[str] = Field(
+        None,
+        examples=["42101-1234567-1"],
+        description="Optional 13-digit Pakistani CNIC number.",
+    )
+    date_of_birth: Optional[date] = Field(
+        None,
+        examples=["1995-08-15"],
+        description="Optional date of birth (YYYY-MM-DD).",
+    )
 
     @field_validator("mobile_number")
     @classmethod
     def check_mobile(cls, v: str) -> str:
         return validate_pakistani_mobile(v)
+
+    @field_validator("cnic_number")
+    @classmethod
+    def check_cnic(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        cleaned = v.strip().replace(" ", "")
+        if not re.match(r"^\d{5}-?\d{7}-?\d{1}$", cleaned):
+            raise ValueError(
+                "CNIC number must be a valid 13-digit Pakistani CNIC (e.g. 42101-1234567-1 or 4210112345671)."
+            )
+        return cleaned
 
     @field_validator("password")
     @classmethod
@@ -132,6 +154,8 @@ class UserOut(BaseModel):
     id: UUID
     name: str
     mobile_number: str
+    cnic_number: Optional[str] = None
+    date_of_birth: Optional[date] = None
     role: UserRole
     verification_status: VerificationStatus
     office_name: Optional[str] = None
