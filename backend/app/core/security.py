@@ -25,14 +25,24 @@ def get_password_hash(password: str) -> str:
 
 import uuid
 
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(
+    subject: Union[str, Any],
+    role: Optional[str] = None,
+    expires_delta: timedelta = None,
+) -> str:
     """Generate JWT Access Token payload."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     
-    to_encode = {"exp": expire, "sub": str(subject), "type": "access", "jti": str(uuid.uuid4())}
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "role": role,
+        "type": "access",
+        "jti": str(uuid.uuid4()),
+    }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 

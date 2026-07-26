@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_driver
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.response import ErrorResponse, SuccessResponse
@@ -32,7 +32,7 @@ router = APIRouter()
 )
 def create_vehicle(
     payload: VehicleCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)
@@ -56,7 +56,7 @@ def create_vehicle(
     },
 )
 def list_vehicles(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)
@@ -81,7 +81,7 @@ def list_vehicles(
 )
 def get_vehicle(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)
@@ -108,7 +108,7 @@ def get_vehicle(
 def update_vehicle(
     id: UUID,
     payload: VehicleUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)
@@ -136,7 +136,7 @@ def update_vehicle(
 )
 def activate_vehicle(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)
@@ -165,7 +165,7 @@ def activate_vehicle(
 )
 def delete_vehicle(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = VehicleService(db)

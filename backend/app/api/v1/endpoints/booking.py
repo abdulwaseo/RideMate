@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_driver, get_current_passenger
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.booking import (
@@ -44,7 +44,7 @@ bookings_router = APIRouter()
 )
 def create_ride_request(
     payload: RideRequestCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_passenger),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)
@@ -67,7 +67,7 @@ def create_ride_request(
     },
 )
 def list_my_ride_requests(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_passenger),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)
@@ -93,7 +93,7 @@ def list_my_ride_requests(
 )
 def cancel_ride_request(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_passenger),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)
@@ -121,7 +121,7 @@ def cancel_ride_request(
     },
 )
 def list_driver_incoming_requests(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)
@@ -153,7 +153,7 @@ def list_driver_incoming_requests(
 )
 def accept_ride_request(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)
@@ -180,7 +180,7 @@ def accept_ride_request(
 )
 def reject_ride_request(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideRequestService(db)

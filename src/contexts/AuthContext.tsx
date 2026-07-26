@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/token';
+import { setAuthToken, clearAuthToken } from '../utils/token';
 
 export type UserRole = 'driver' | 'passenger';
 
@@ -20,6 +20,11 @@ export interface UserType {
   vehicleRegistrationNumber?: string;
 }
 
+export interface LoginResult {
+  success: boolean;
+  errorMsg?: string;
+}
+
 export interface RegisterResult {
   success: boolean;
   driverProfileFailed?: boolean;
@@ -31,7 +36,7 @@ interface AuthContextType {
   role: UserRole | null;
   user: UserType | null;
   isLoading: boolean;
-  login: (mobileNumber: string, password: string, role?: UserRole) => Promise<boolean>;
+  login: (mobileNumber: string, password: string, portalRole?: UserRole) => Promise<LoginResult>;
   logout: () => void;
   register: (userData: UserType & { password?: string }) => Promise<RegisterResult>;
   updateUser: (updatedData: Partial<UserType>) => void;
@@ -45,38 +50,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize state from sessionStorage (tab-isolated) or fallback to localStorage
+  // Initialize auth state from localStorage or sessionStorage
   useEffect(() => {
-    const sessionUser = sessionStorage.getItem('ridemate_user') || localStorage.getItem('ridemate_user');
-    const sessionAuth = sessionStorage.getItem('ridemate_auth') || localStorage.getItem('ridemate_auth');
-    const sessionToken = getAuthToken();
+    const isAuth = sessionStorage.getItem('ridemate_auth') === 'true' || localStorage.getItem('ridemate_auth') === 'true';
+    const storedUser = sessionStorage.getItem('ridemate_user') || localStorage.getItem('ridemate_user');
 
-    if (sessionUser && sessionAuth === 'true' && sessionToken) {
+    if (isAuth && storedUser) {
       try {
-        const parsedUser = JSON.parse(sessionUser) as UserType;
-        
-        sessionStorage.setItem('ridemate_auth', 'true');
-        sessionStorage.setItem('ridemate_user', JSON.stringify(parsedUser));
-        
-        setAuthToken(sessionToken);
-
+        const parsedUser: UserType = JSON.parse(storedUser);
         setUser(parsedUser);
         setRole(parsedUser.role);
         setIsAuthenticated(true);
       } catch (err) {
-        clearAuthToken();
+        console.error('Failed to parse stored user:', err);
       }
-    } else {
-      clearAuthToken();
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (mobileNumber: string, password: string, requestedRole?: UserRole): Promise<boolean> => {
+  const login = async (mobileNumber: string, password: string, portalRole?: UserRole): Promise<LoginResult> => {
     setIsLoading(true);
-
     try {
-      // Execute authentic login with backend API
       const res = await fetch('http://localhost:8000/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,15 +86,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userObj = json.data?.user;
 
         if (tokens?.access_token) {
-          const backendRole = userObj?.role === 'DRIVER' || userObj?.role === 'driver' ? 'driver' : 'passenger';
-          const effectiveRole = requestedRole || backendRole;
+          const backendRole: UserRole = userObj?.role === 'DRIVER' || userObj?.role === 'driver' ? 'driver' : 'passenger';
+
+          // Enforce role-based portal access control
+          if (portalRole && backendRole !== portalRole) {
+            setIsLoading(false);
+            const capitalBackendRole = backendRole === 'passenger' ? 'Passenger' : 'Driver';
+            return {
+              success: false,
+              errorMsg: `This account is registered as a ${capitalBackendRole}. Please log in through the ${capitalBackendRole} portal.`,
+            };
+          }
 
           const authUser: UserType = {
             id: userObj?.id,
             name: userObj?.name || 'Commuter',
             mobileNumber: userObj?.mobile_number || mobileNumber,
             email: userObj?.email,
-            role: effectiveRole,
+            role: backendRole,
             officeName: userObj?.office_name || 'Dilkusha Towers',
           };
 
@@ -114,10 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('ridemate_user', JSON.stringify(authUser));
 
           setUser(authUser);
-          setRole(effectiveRole);
+          setRole(backendRole);
           setIsAuthenticated(true);
           setIsLoading(false);
-          return true;
+          return { success: true };
         }
       } else {
         console.warn('[AuthContext] Login rejected by backend:', res.status, res.statusText);
@@ -127,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setIsLoading(false);
-    return false;
+    return { success: false, errorMsg: 'Invalid mobile number or password. Please verify your credentials.' };
   };
 
   const register = async (userData: UserType & { password?: string }): Promise<RegisterResult> => {

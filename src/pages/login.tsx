@@ -50,11 +50,11 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
-      const success = await login(values.mobileNumber, values.password, role);
-      if (success) {
+      const res = await login(values.mobileNumber, values.password, role);
+      if (res.success) {
         navigate(role === 'driver' ? ROUTES.DRIVER_DASHBOARD : ROUTES.PASSENGER_DASHBOARD, { replace: true });
       } else {
-        setErrorMsg('Invalid mobile number or password. Please verify your credentials and try again.');
+        setErrorMsg(res.errorMsg || 'Invalid mobile number or password. Please verify your credentials and try again.');
       }
     } catch (err) {
       setErrorMsg('Authentication error. Unable to connect to backend server.');

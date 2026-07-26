@@ -157,7 +157,10 @@ class AuthService:
 
     def _issue_tokens(self, user: User) -> Tuple[str, str]:
         """Generate and persist an access + refresh token pair."""
-        access_token = create_access_token(subject=str(user.id))
+        access_token = create_access_token(
+            subject=str(user.id),
+            role=user.role.value if hasattr(user.role, 'value') else str(user.role),
+        )
         refresh_token = create_refresh_token(subject=str(user.id))
 
         expires_at = datetime.now(timezone.utc) + timedelta(

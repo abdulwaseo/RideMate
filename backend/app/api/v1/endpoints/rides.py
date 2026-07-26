@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_driver
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.enums import VehicleType
@@ -42,7 +42,7 @@ router = APIRouter()
 )
 def publish_ride(
     payload: RideCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideService(db)
@@ -189,7 +189,7 @@ def get_ride(
 def update_ride(
     id: UUID,
     payload: RideUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideService(db)
@@ -216,7 +216,7 @@ def update_ride(
 )
 def cancel_ride(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideService(db)
@@ -243,7 +243,7 @@ def cancel_ride(
 )
 def complete_ride(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideService(db)
@@ -269,7 +269,7 @@ def complete_ride(
 )
 def delete_ride(
     id: UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = RideService(db)

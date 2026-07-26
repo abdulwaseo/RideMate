@@ -51,6 +51,11 @@ def get_current_user(
     if not user:
         raise credentials_exception
 
+    # Verify role claim in token if present
+    token_role = payload.get("role")
+    if token_role and token_role.lower() != user.role.value.lower():
+        raise credentials_exception
+
     return user
 
 
@@ -58,13 +63,13 @@ def get_current_driver(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """
-    Dependency that asserts the current user has a DriverProfile.
+    Dependency that asserts the current user has Driver role & DriverProfile.
     Raises HTTP 403 if not a driver.
     """
-    if not current_user.driver_profile:
+    if current_user.role != UserRole.DRIVER or not current_user.driver_profile:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Driver profile required to access this resource.",
+            detail="Driver role and profile required to access this resource.",
         )
     return current_user
 
@@ -73,13 +78,13 @@ def get_current_passenger(
     current_user: User = Depends(get_current_user),
 ) -> User:
     """
-    Dependency that asserts the current user has a PassengerProfile.
-    Raises HTTP 403 if no passenger profile exists.
+    Dependency that asserts the current user has Passenger role & PassengerProfile.
+    Raises HTTP 403 if not a passenger.
     """
-    if not current_user.passenger_profile:
+    if current_user.role != UserRole.PASSENGER or not current_user.passenger_profile:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Passenger profile required to access this resource.",
+            detail="Passenger role and profile required to access this resource.",
         )
     return current_user
 

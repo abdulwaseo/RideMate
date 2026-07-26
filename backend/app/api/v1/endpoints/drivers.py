@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_current_driver
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.driver import (
@@ -61,7 +61,7 @@ def create_driver_profile(
     },
 )
 def get_driver_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_driver),
     db: Session = Depends(get_db),
 ):
     svc = DriverService(db)
