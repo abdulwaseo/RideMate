@@ -31,10 +31,10 @@ const CATEGORY_ICONS: Record<NotificationCategory, React.ReactNode> = {
 };
 
 const PRIORITY_BG: Record<string, string> = {
-  Low: 'border-slate-800 bg-slate-900/50',
-  Medium: 'border-slate-800 bg-slate-900',
-  High: 'border-emerald-500/30 bg-emerald-950/10',
-  Critical: 'border-red-500/40 bg-red-950/20',
+  Low: 'border-slate-200 bg-slate-50/80',
+  Medium: 'border-slate-200 bg-white',
+  High: 'border-emerald-500/30 bg-emerald-50/60',
+  Critical: 'border-red-500/40 bg-red-50/60',
 };
 
 function formatTimeAgo(dateStr: string): string {
@@ -92,7 +92,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
       }`}
     >
       {/* Category Icon */}
-      <div className="p-2.5 rounded-xl bg-slate-800 border border-slate-700/60 flex-shrink-0">
+      <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 flex-shrink-0">
         {icon}
       </div>
 
@@ -101,7 +101,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
         <div className="flex items-center gap-2 mb-1">
           <h4
             className={`text-sm font-bold truncate ${
-              !notification.is_read ? 'text-white' : 'text-slate-300'
+              !notification.is_read ? 'text-slate-900' : 'text-slate-500'
             }`}
           >
             {notification.title}
