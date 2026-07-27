@@ -29,7 +29,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addToast = useCallback((type: ToastType, title: string, description: string, duration = 4000, onClick?: () => void) => {
     const id = `toast-${Math.random().toString(36).substr(2, 9)}`;
-    setToasts((prev) => [...prev, { id, type, title, description, duration, onClick }]);
+
+    setToasts((prev) => {
+      const isDuplicate = prev.some(
+        (t) => t.title === title && t.description === description
+      );
+      if (isDuplicate) {
+        return prev;
+      }
+      return [...prev, { id, type, title, description, duration, onClick }];
+    });
 
     if (duration > 0) {
       setTimeout(() => {

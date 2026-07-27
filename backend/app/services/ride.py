@@ -336,7 +336,7 @@ class RideService:
             if b_pid_str not in affected_passenger_ids:
                 affected_passenger_ids.append(b_pid_str)
 
-        # 2. Cancel ALL ride requests (both PENDING and ACCEPTED) & notify passengers
+        # 2. Cancel ALL ride requests (both PENDING and ACCEPTED) & notify passengers once per unique passenger
         all_requests = (
             self.db.query(RideRequest)
             .filter(
@@ -345,11 +345,17 @@ class RideService:
             )
             .all()
         )
+        notified_passengers = set()
         for r in all_requests:
             r.status = BookingStatus.CANCELLED
             p_id_str = str(r.passenger_id)
             if p_id_str not in affected_passenger_ids:
                 affected_passenger_ids.append(p_id_str)
+
+            # Only create notification & broadcast WS event once per unique passenger
+            if r.passenger_id in notified_passengers:
+                continue
+            notified_passengers.add(r.passenger_id)
 
             notif = dispatcher.notif_repo.create(
                 user_id=r.passenger_id,
@@ -493,9 +499,23 @@ class RideService:
         self.db.commit()
         self.db.refresh(ride)
 
-        # 3. Broadcast WebSocket events to driver & all affected passengers
+        # 3. Broadcast WebSocket events (RIDE_UPDATE & RIDE_COMPLETED) to driver & all affected passengers
         try:
+            driver_name = user.name if user else "Driver"
             complete_event = WSEvent(
+                event_type=WSEventType.RIDE_COMPLETED.value,
+                sender={"user_id": str(user.id), "role": "driver"},
+                payload={
+                    "ride_id": str(ride.id),
+                    "status": "Completed",
+                    "driver_id": str(user.id),
+                    "driver_name": driver_name,
+                    "pickup_area": ride.pickup_area,
+                    "destination_area": ride.destination_area,
+                    "message": "The driver has completed the ride.",
+                },
+            )
+            update_event = WSEvent(
                 event_type=WSEventType.RIDE_UPDATE.value,
                 sender={"user_id": str(user.id), "role": "driver"},
                 payload={
@@ -507,8 +527,10 @@ class RideService:
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 loop.create_task(manager.broadcast_to_room(f"user:{user.id}", complete_event))
+                loop.create_task(manager.broadcast_to_room(f"user:{user.id}", update_event))
                 for pid in affected_passenger_ids:
                     loop.create_task(manager.broadcast_to_room(f"user:{pid}", complete_event))
+                    loop.create_task(manager.broadcast_to_room(f"user:{pid}", update_event))
         except Exception as e:
             logger.warning(f"Failed to broadcast ride completion WebSocket events: {e}")
 
