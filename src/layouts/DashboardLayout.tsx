@@ -1,12 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Menu, Bell, MessageSquare, Search, ShieldCheck } from 'lucide-react';
 import { Sidebar } from '../components/navigation/Sidebar';
+import { BottomNav } from '../components/navigation/BottomNav';
 import { Avatar } from '../components/ui/Avatar';
 import { SidebarProvider, useSidebar } from '../contexts/SidebarContext';
 import { useAuth } from '../hooks/useAuth';
 import { useCommunication } from '../hooks/useCommunication';
 import { useChatContext } from '../contexts/ChatContext';
+import { useSocketEvent } from '../hooks/useSocketEvent';
+import { PassengerRateDriverModal } from '../components/passenger/PassengerRateDriverModal';
 import { cn } from '../utils/cn';
 import { CommandSearch } from '../components/ui/CommandSearch';
 
@@ -16,8 +19,42 @@ const DashboardLayoutContent: React.FC = () => {
   const { user } = useAuth();
   const { unreadCount } = useCommunication();
   const { totalUnreadCount } = useChatContext();
-  const [showSearch, setShowSearch] = React.useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const navigate = useNavigate();
+
+  // State for passenger rating driver modal
+  const [rateDriverModal, setRateDriverModal] = useState<{
+    isOpen: boolean;
+    rideId: string;
+    driverId: string;
+    driverName: string;
+    routeName?: string;
+  }>({
+    isOpen: false,
+    rideId: '',
+    driverId: '',
+    driverName: '',
+  });
+
+  // Track handled ride IDs to prevent duplicate rating modals
+  const [handledRideIds, setHandledRideIds] = useState<Set<string>>(new Set());
+
+  // Listen for real-time ride completion WebSocket events
+  useSocketEvent('ride_completed', (evt) => {
+    if (user?.role !== 'passenger') return;
+    const payload = evt.payload || {};
+    const rId = payload.ride_id;
+    if (!rId || handledRideIds.has(rId)) return;
+
+    setHandledRideIds((prev) => new Set(prev).add(rId));
+    setRateDriverModal({
+      isOpen: true,
+      rideId: rId,
+      driverId: payload.driver_id || '',
+      driverName: payload.driver_name || 'Driver',
+      routeName: payload.pickup_area && payload.destination_area ? `${payload.pickup_area} → ${payload.destination_area}` : undefined,
+    });
+  });
 
   // Cmd+K hotkey hook
   useEffect(() => {
@@ -54,18 +91,27 @@ const DashboardLayoutContent: React.FC = () => {
       )}>
         
         {/* Top Dashboard Navbar */}
-        <header className="sticky top-0 z-30 h-16 glass-panel border-b border-brand-border/40 bg-brand-bg/70 backdrop-blur-md px-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-30 h-16 glass-panel border-b border-brand-border/40 bg-brand-bg/70 backdrop-blur-md px-3.5 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Mobile Sidebar Trigger */}
             <button
               onClick={toggleMobileSidebar}
-              className="lg:hidden p-2 rounded-lg bg-white/[0.02] border border-brand-border text-brand-textMuted hover:text-brand-text"
+              className="lg:hidden min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-white/[0.02] border border-brand-border text-brand-textMuted hover:text-brand-text flex items-center justify-center transition-colors"
               aria-label="Open mobile menu"
             >
               <Menu className="h-5 w-5" />
             </button>
             
-            {/* Search Placeholder */}
+            {/* Mobile Search Button Trigger (icon-only <640px) */}
+            <button
+              onClick={() => setShowSearch(true)}
+              className="sm:hidden min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-white/[0.02] border border-brand-border text-brand-textMuted hover:text-brand-text flex items-center justify-center transition-colors"
+              aria-label="Open Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+
+            {/* Desktop Search Placeholder */}
             <div 
               onClick={() => setShowSearch(true)}
               className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-brand-border bg-white/[0.01] w-64 text-brand-textMuted hover:border-brand-primary/20 transition-all cursor-pointer select-none"
@@ -78,7 +124,7 @@ const DashboardLayoutContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3.5 relative">
+          <div className="flex items-center gap-2 sm:gap-3.5 relative">
             {/* Trust Indicator */}
             <div className="hidden md:flex items-center gap-1 text-[11px] font-bold text-brand-primary tracking-wide uppercase px-2.5 py-1 rounded-md border border-brand-primary/20 bg-brand-primary/5">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -88,11 +134,11 @@ const DashboardLayoutContent: React.FC = () => {
             {/* Messenger Chat Icon */}
             <button 
               onClick={() => navigate(chatUrl)}
-              className="p-2 rounded-lg bg-white/[0.01] border border-brand-border text-brand-textMuted hover:text-brand-text transition-colors relative"
+              className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-white/[0.01] border border-brand-border text-brand-textMuted hover:text-brand-text transition-colors relative flex items-center justify-center"
               title="Messenger / Chat"
               aria-label="Open Chat Inbox"
             >
-              <MessageSquare className="h-4.5 w-4.5" />
+              <MessageSquare className="h-5 w-5 sm:h-4.5 sm:w-4.5" />
               {totalUnreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-brand-primary rounded-full text-[9px] font-extrabold text-white flex items-center justify-center border border-brand-bg shadow-sm animate-pulse">
                   {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
@@ -103,11 +149,11 @@ const DashboardLayoutContent: React.FC = () => {
             {/* Notification Bell Icon */}
             <button 
               onClick={() => navigate(notificationsUrl)}
-              className="p-2 rounded-lg bg-white/[0.01] border border-brand-border text-brand-textMuted hover:text-brand-text transition-colors relative"
+              className="min-w-[44px] min-h-[44px] p-2.5 rounded-xl bg-white/[0.01] border border-brand-border text-brand-textMuted hover:text-brand-text transition-colors relative flex items-center justify-center"
               title="Notifications"
               aria-label="Open Notification Center"
             >
-              <Bell className="h-4.5 w-4.5" />
+              <Bell className="h-5 w-5 sm:h-4.5 sm:w-4.5" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-brand-accent rounded-full text-[9px] font-extrabold text-brand-bg flex items-center justify-center border border-brand-bg shadow-sm animate-pulse">
                   {unreadCount > 99 ? '99+' : unreadCount}
@@ -115,10 +161,10 @@ const DashboardLayoutContent: React.FC = () => {
               )}
             </button>
 
-            <span className="h-4 w-px bg-brand-border/50" />
+            <span className="h-4 w-px bg-brand-border/50 hidden sm:block" />
 
             {/* User Profile */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <div className="text-right hidden sm:block">
                 <p className="text-xs font-semibold text-brand-text">{user?.name || 'Abdul Waseo'}</p>
                 <p className="text-[10px] text-brand-textMuted uppercase tracking-wider">
@@ -131,7 +177,7 @@ const DashboardLayoutContent: React.FC = () => {
         </header>
 
         {/* Dashboard Pages Content */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 pb-20 lg:pb-8 overflow-y-auto max-w-7xl w-full mx-auto">
           <React.Suspense fallback={
             <div className="flex flex-col gap-4 animate-pulse w-full max-w-2xl text-left">
               <div className="h-7 w-1/3 bg-white/[0.05] rounded" />
@@ -144,8 +190,21 @@ const DashboardLayoutContent: React.FC = () => {
         </main>
       </div>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <BottomNav />
+
       {/* Command Search Bar Overlay */}
       <CommandSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+
+      {/* Floating Passenger Rate Driver Modal triggered via WS ride_completed event */}
+      <PassengerRateDriverModal
+        isOpen={rateDriverModal.isOpen}
+        onClose={() => setRateDriverModal((prev) => ({ ...prev, isOpen: false }))}
+        rideId={rateDriverModal.rideId}
+        driverId={rateDriverModal.driverId}
+        driverName={rateDriverModal.driverName}
+        routeName={rateDriverModal.routeName}
+      />
     </div>
   );
 };
