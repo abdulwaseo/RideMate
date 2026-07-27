@@ -87,11 +87,12 @@ class RideRequestService:
 
         # Rule: Single active request / booking
         pending_req = self.req_repo.get_pending_by_passenger(user.id)
+        accepted_req = self.req_repo.get_accepted_upcoming_request_by_passenger(user.id)
         active_booking = self.booking_repo.get_active_by_passenger(user.id)
-        if pending_req or active_booking:
+        if pending_req or accepted_req or active_booking:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="[REQ_001] You already have an active ride request or confirmed booking.",
+                detail="[REQ_001] You already have an active booking on an upcoming ride. Please complete or cancel it before booking another ride.",
             )
 
         # Rule: Duplicate request check
@@ -466,6 +467,8 @@ class RideRequestService:
 
         ride_summary = None
         if req.ride:
+            driver_user_id = req.ride.driver_profile.user_id if req.ride.driver_profile else None
+            driver_user_name = req.ride.driver_profile.user.name if (req.ride.driver_profile and req.ride.driver_profile.user) else None
             ride_summary = RideBrief(
                 id=req.ride.id,
                 pickup_area=req.ride.pickup_area,
@@ -474,6 +477,8 @@ class RideRequestService:
                 departure_time=str(req.ride.departure_time),
                 fare_per_passenger=req.ride.fare_per_passenger,
                 status=req.ride.status,
+                driver_id=driver_user_id,
+                driver_name=driver_user_name,
             )
 
         return RideRequestResponse(

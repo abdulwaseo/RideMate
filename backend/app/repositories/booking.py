@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.booking import Booking, RideRequest
 from app.models.ride import Ride
 from app.models.user import User
-from app.schemas.enums import BookingStatus, ConfirmedBookingStatus
+from app.schemas.enums import BookingStatus, ConfirmedBookingStatus, RideStatus
 
 
 class RideRequestRepository:
@@ -30,6 +30,15 @@ class RideRequestRepository:
             RideRequest.passenger_id == passenger_id,
             RideRequest.status == BookingStatus.PENDING,
             RideRequest.is_deleted == False,
+        ).first()
+
+    def get_accepted_upcoming_request_by_passenger(self, passenger_id: UUID) -> Optional[RideRequest]:
+        """Find any accepted request for passenger on an upcoming/active/full ride."""
+        return self.db.query(RideRequest).join(Ride, RideRequest.ride_id == Ride.id).filter(
+            RideRequest.passenger_id == passenger_id,
+            RideRequest.status == BookingStatus.ACCEPTED,
+            RideRequest.is_deleted == False,
+            Ride.status.in_([RideStatus.UPCOMING, RideStatus.ACTIVE, RideStatus.FULL]),
         ).first()
 
     def get_by_passenger_and_ride(self, passenger_id: UUID, ride_id: UUID) -> Optional[RideRequest]:
@@ -99,11 +108,12 @@ class BookingRepository:
         ).first()
 
     def get_active_by_passenger(self, passenger_id: UUID) -> Optional[Booking]:
-        """Find any active confirmed booking for passenger."""
-        return self.db.query(Booking).filter(
+        """Find any active confirmed booking for passenger on an upcoming/active/full ride."""
+        return self.db.query(Booking).join(Ride, Booking.ride_id == Ride.id).filter(
             Booking.passenger_id == passenger_id,
             Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
             Booking.is_deleted == False,
+            Ride.status.in_([RideStatus.UPCOMING, RideStatus.ACTIVE, RideStatus.FULL]),
         ).first()
 
     def list_by_passenger(self, passenger_id: UUID) -> List[Booking]:
