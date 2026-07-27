@@ -66,7 +66,9 @@ export const PassengerDashboard: React.FC = () => {
   });
 
   // Find dynamic upcoming accepted ride
-  const upcomingRide = bookingRequests.find((req) => req.status === 'Accepted');
+  const upcomingRide = bookingRequests.find(
+    (req) => req.status === 'Accepted' && req.ride.status !== 'Cancelled' && req.ride.status !== 'Completed'
+  );
   
   // Find dynamic pending requests count
   const pendingRequestsCount = bookingRequests.filter((req) => req.status === 'Pending').length;

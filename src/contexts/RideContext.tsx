@@ -275,6 +275,17 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchRides();
     fetchDriverRides();
     refreshAllRequests();
+
+    const handleRefreshEvent = () => {
+      fetchRides();
+      fetchDriverRides();
+      refreshAllRequests();
+    };
+
+    window.addEventListener('app:refresh-data', handleRefreshEvent);
+    return () => {
+      window.removeEventListener('app:refresh-data', handleRefreshEvent);
+    };
   }, [fetchRides, fetchDriverRides, refreshAllRequests]);
 
   // Keep a stable ref to rides so WS handlers can read current rides
@@ -344,6 +355,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
         prev.map((r) => (r.id === reqId ? { ...r, status: 'Accepted' } : r))
       );
       fetchRides();
+      refreshAllRequests();
     });
 
     const unsubRej = subscribe('booking_rejected', (evt) => {
@@ -353,6 +365,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBookingRequests((prev) =>
         prev.map((r) => (r.id === reqId ? { ...r, status: 'Rejected' } : r))
       );
+      refreshAllRequests();
     });
 
     const unsubCan = subscribe('booking_cancelled', (evt) => {
@@ -363,14 +376,25 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBookingRequests((prev) =>
         prev.map((r) =>
           (reqId && r.id === reqId) || (rideId && r.rideId === rideId)
-            ? { ...r, status: 'Cancelled' }
+            ? { ...r, status: 'Cancelled', ride: { ...r.ride, status: 'Cancelled' } }
             : r
         )
       );
       fetchRides();
+      refreshAllRequests();
     });
 
-    const unsubRideUpd = subscribe('ride_update', () => {
+    const unsubRideUpd = subscribe('ride_update', (evt) => {
+      const data = evt.payload;
+      if (data?.ride_id && data?.status === 'Cancelled') {
+        setBookingRequests((prev) =>
+          prev.map((r) =>
+            r.rideId === data.ride_id
+              ? { ...r, status: 'Cancelled', ride: { ...r.ride, status: 'Cancelled' } }
+              : r
+          )
+        );
+      }
       fetchRides();
       fetchDriverRides();
       refreshAllRequests();

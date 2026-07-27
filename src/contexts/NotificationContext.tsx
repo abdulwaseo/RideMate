@@ -280,11 +280,12 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
           'info',
           item.title || 'New Notification',
           item.body || '',
-          5000,
+          6000,
           () => {
             if (item.id) {
               markAsRead(item.id);
             }
+            window.dispatchEvent(new CustomEvent('app:refresh-data'));
             if (targetUrl) {
               navigate(targetUrl);
             }

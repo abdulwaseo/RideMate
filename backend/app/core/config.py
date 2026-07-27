@@ -34,7 +34,9 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://localhost:8000",
+        "https://ride-mate-nine.vercel.app",
     ]
+    CORS_ORIGIN_REGEX: str = r"https://ride-mate.*\.vercel\.app"
 
     @field_validator("CORS_ORIGINS")
     @classmethod
@@ -48,6 +50,7 @@ class Settings(BaseSettings):
             "http://localhost:3000",
             "http://127.0.0.1:5173",
             "http://localhost:8000",
+            "https://ride-mate-nine.vercel.app",
         ]
 
     # Redis settings

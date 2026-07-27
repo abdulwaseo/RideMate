@@ -23,10 +23,19 @@ import { getAuthToken } from '../../utils/token';
 
 import { API_V1_URL } from '../../config/api';
 
+import { useLocation } from 'react-router-dom';
+
 export const DriverDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { activeRide, requests, rideHistory, acceptRequest, rejectRequest } = useDriver();
+  const { activeRide, requests, rideHistory, acceptRequest, rejectRequest, refreshAllData } = useDriver();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (refreshAllData) {
+      refreshAllData();
+    }
+  }, [location.key, refreshAllData]);
 
   // Dynamic Rating State
   const [driverRating, setDriverRating] = React.useState<{ average: number; count: number }>({

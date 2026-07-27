@@ -121,9 +121,12 @@ export const RideDetails: React.FC = () => {
     };
   }, [id, contextRide]);
 
-  // Check if passenger already has an active request (Pending or Accepted on an un-completed ride)
+  // Check if passenger already has an active request (Pending or Accepted on an un-completed, un-cancelled ride)
   const activeRequest = bookingRequests.find(
-    (req) => (req.status === 'Pending' || req.status === 'Accepted') && req.ride.status !== 'Completed'
+    (req) =>
+      (req.status === 'Pending' || req.status === 'Accepted') &&
+      req.ride.status !== 'Completed' &&
+      req.ride.status !== 'Cancelled'
   );
 
   const hasActiveRequest = !!activeRequest;

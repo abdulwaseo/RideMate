@@ -60,6 +60,7 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
     if (!notification.is_read && onMarkRead) {
       onMarkRead(notification.id);
     }
+    window.dispatchEvent(new CustomEvent('app:refresh-data'));
     if (onClick) {
       let targetUrl = notification.action_url;
       if (!targetUrl && notification.data_json) {

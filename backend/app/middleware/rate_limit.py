@@ -55,13 +55,20 @@ class RateLimitMiddleware:
                 "data": None,
             }).encode()
 
+            # Get request origin if present
+            origin_header = b"*"
+            for h_name, h_val in scope.get("headers", []):
+                if h_name.lower() == b"origin":
+                    origin_header = h_val
+                    break
+
             await send({
                 "type": "http.response.start",
                 "status": 429,
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"retry-after", b"60"),
-                    (b"access-control-allow-origin", b"http://localhost:5173"),
+                    (b"access-control-allow-origin", origin_header),
                     (b"access-control-allow-credentials", b"true"),
                     (b"access-control-allow-headers", b"*"),
                     (b"access-control-allow-methods", b"*"),

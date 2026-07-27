@@ -22,28 +22,59 @@ from app.schemas.enums import BookingStatus, ConfirmedBookingStatus, RideStatus
 
 
 class RideCapacityService:
-    """Helper service managing ride capacity calculations and status transitions."""
+    """Helper service managing ride capacity calculations and status transitions with row-level locking."""
 
     @staticmethod
-    def decrement_seat(db: Session, ride: Ride) -> None:
-        """Decrement available seats by 1 and mark FULL if capacity reached."""
-        if ride.available_seats > 0:
-            ride.available_seats -= 1
+    def decrement_seat(db: Session, ride: Ride) -> Ride:
+        """
+        Acquires a row-level lock (SELECT ... FOR UPDATE) on the target ride,
+        re-checks seat availability against fresh DB state using populate_existing(),
+        decrements available seats by 1, and marks FULL if capacity reached.
+        Raises HTTP 400 if no seats remain under concurrent execution.
+        """
+        locked_ride = (
+            db.query(Ride)
+            .filter(Ride.id == ride.id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
+        target = locked_ride or ride
 
-        if ride.available_seats <= 0:
-            ride.status = RideStatus.FULL
+        if target.available_seats <= 0 or target.status in [RideStatus.FULL, RideStatus.COMPLETED, RideStatus.CANCELLED]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="[REQ_003] This ride is now full and cannot accept further bookings.",
+            )
+
+        target.available_seats -= 1
+        if target.available_seats <= 0:
+            target.status = RideStatus.FULL
 
         db.flush()
+        return target
 
     @staticmethod
-    def increment_seat(db: Session, ride: Ride) -> None:
-        """Increment available seats by 1 and revert to UPCOMING if previously FULL."""
-        ride.available_seats += 1
+    def increment_seat(db: Session, ride: Ride) -> Ride:
+        """
+        Acquires a row-level lock on the target ride, increments available seats by 1,
+        and reverts to UPCOMING if previously FULL.
+        """
+        locked_ride = (
+            db.query(Ride)
+            .filter(Ride.id == ride.id)
+            .populate_existing()
+            .with_for_update()
+            .first()
+        )
+        target = locked_ride or ride
 
-        if ride.status == RideStatus.FULL and ride.available_seats > 0:
-            ride.status = RideStatus.UPCOMING
+        target.available_seats += 1
+        if target.status == RideStatus.FULL and target.available_seats > 0:
+            target.status = RideStatus.UPCOMING
 
         db.flush()
+        return target
 
 
 class RideRequestService:
@@ -317,18 +348,18 @@ class RideRequestService:
             )
 
         try:
-            # 1. Update request status
+            # 1. Acquire row-level lock on Ride (SELECT ... FOR UPDATE), re-check seats, and decrement available seats
+            locked_ride = RideCapacityService.decrement_seat(self.db, req.ride)
+
+            # 2. Update request status to ACCEPTED
             self.req_repo.update_status(req, BookingStatus.ACCEPTED)
 
-            # 2. Create Booking
+            # 3. Create confirmed Booking record
             booking = self.booking_repo.create(
                 ride_id=req.ride_id,
                 passenger_id=req.passenger_id,
                 request_id=req.id,
             )
-
-            # 3. Recalculate capacity
-            RideCapacityService.decrement_seat(self.db, req.ride)
 
             # 4. Automatically create/retrieve ChatRoom and dispatch events
             from app.services.chat import ChatService
@@ -526,12 +557,99 @@ class BookingService:
 
         cancelled = self.booking_repo.cancel_booking(booking)
 
-        # Free 1 seat and update ride status
+        # 1. Update associated RideRequest if exists
+        if booking.request_id:
+            req = self.req_repo.get_by_id(booking.request_id)
+            if req:
+                self.req_repo.update_status(req, BookingStatus.CANCELLED)
+
+        # 2. Free 1 seat and update ride status (FULL -> UPCOMING)
         if booking.ride:
             RideCapacityService.increment_seat(self.db, booking.ride)
 
         self.db.commit()
-        return self._format_booking_response(cancelled)
+        res = self._format_booking_response(cancelled)
+
+        # 3. Cascade cleanup: post chat system message, notify driver, broadcast WS events
+        try:
+            import json
+            from app.services.event_dispatcher import InAppEventDispatcher
+            from app.schemas.enums import NotificationCategory, NotificationPriority
+            from app.schemas.websocket import WSEvent, WSEventType
+            from app.websocket.connection_manager import safe_broadcast_to_room
+
+            driver_user_id = booking.ride.driver_profile.user.id if (booking.ride and booking.ride.driver_profile and booking.ride.driver_profile.user) else None
+            passenger_name = user.name or "A passenger"
+
+            chat_room = None
+            if booking.ride:
+                from app.services.chat import ChatService
+                chat_svc = ChatService(self.db)
+                chat_room = chat_svc.chat_repo.get_by_ride_id(booking.ride_id)
+                if chat_room:
+                    dispatcher = InAppEventDispatcher(self.db)
+                    dispatcher.broadcast_system_message(chat_room.id, f"Passenger {passenger_name} left the ride.")
+
+                if driver_user_id and str(driver_user_id) != str(user.id):
+                    dispatcher = InAppEventDispatcher(self.db)
+                    notif = dispatcher.notif_repo.create(
+                        user_id=driver_user_id,
+                        title="Booking Cancelled",
+                        body=f"{passenger_name} cancelled their accepted booking to {booking.ride.destination_area}.",
+                        category=NotificationCategory.BOOKING,
+                        priority=NotificationPriority.HIGH,
+                        action_url="/dashboard/driver/requests",
+                        data_json=json.dumps({"type": "ride_cancelled", "ride_id": str(booking.ride_id), "booking_id": str(booking.id)}),
+                    )
+                    self.db.commit()
+
+                    notif_event = WSEvent(
+                        event_type=WSEventType.NOTIFICATION_CREATED.value,
+                        payload={
+                            "id": str(notif.id),
+                            "title": notif.title,
+                            "body": notif.body,
+                            "category": notif.category.value,
+                            "priority": notif.priority.value,
+                            "is_read": False,
+                            "action_url": notif.action_url,
+                            "data_json": notif.data_json,
+                            "created_at": notif.created_at.isoformat(),
+                        },
+                    )
+                    safe_broadcast_to_room(f"user:{driver_user_id}", notif_event)
+
+            # Broadcast BOOKING_CANCELLED and RIDE_UPDATE events
+            evt = WSEvent(
+                event_type=WSEventType.BOOKING_CANCELLED.value,
+                payload={
+                    "id": str(booking.id),
+                    "booking_id": str(booking.id),
+                    "request_id": str(booking.request_id) if booking.request_id else None,
+                    "ride_id": str(booking.ride_id),
+                    "status": "Cancelled",
+                },
+            )
+            ride_upd_evt = WSEvent(
+                event_type=WSEventType.RIDE_UPDATE.value,
+                payload={
+                    "ride_id": str(booking.ride_id),
+                    "status": booking.ride.status.value if hasattr(booking.ride.status, 'value') else str(booking.ride.status),
+                    "available_seats": booking.ride.available_seats,
+                },
+            )
+            safe_broadcast_to_room(f"user:{user.id}", evt)
+            safe_broadcast_to_room(f"user:{user.id}", ride_upd_evt)
+            if driver_user_id:
+                safe_broadcast_to_room(f"user:{driver_user_id}", evt)
+                safe_broadcast_to_room(f"user:{driver_user_id}", ride_upd_evt)
+            if chat_room:
+                safe_broadcast_to_room(f"chat:{chat_room.id}", evt)
+                safe_broadcast_to_room(f"chat:{chat_room.id}", ride_upd_evt)
+        except Exception:
+            pass
+
+        return res
 
     @staticmethod
     def _format_booking_response(booking: Booking) -> BookingResponse:

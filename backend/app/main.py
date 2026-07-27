@@ -28,6 +28,7 @@ cors_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://localhost:8000",
+    "https://ride-mate-nine.vercel.app",
 ]
 if settings.CORS_ORIGINS:
     for o in settings.CORS_ORIGINS:
@@ -37,6 +38,7 @@ if settings.CORS_ORIGINS:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

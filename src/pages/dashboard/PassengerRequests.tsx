@@ -13,13 +13,25 @@ type TabStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled' | 'Completed'
 
 const filterRequestsByTab = (requests: BookingRequest[], tab: TabStatus) => {
   return requests.filter((req) => {
+    const isRideCancelled = req.ride.status === 'Cancelled';
+    const isRideCompleted = req.ride.status === 'Completed';
+
+    if (tab === 'Pending') {
+      return req.status === 'Pending' && !isRideCancelled && !isRideCompleted;
+    }
     if (tab === 'Accepted') {
-      return req.status === 'Accepted' && req.ride.status !== 'Completed';
+      return req.status === 'Accepted' && !isRideCancelled && !isRideCompleted;
+    }
+    if (tab === 'Rejected') {
+      return req.status === 'Rejected';
+    }
+    if (tab === 'Cancelled') {
+      return req.status === 'Cancelled' || (isRideCancelled && req.status !== 'Completed');
     }
     if (tab === 'Completed') {
-      return req.status === 'Completed' || (req.status === 'Accepted' && req.ride.status === 'Completed');
+      return req.status === 'Completed' || (req.status === 'Accepted' && isRideCompleted);
     }
-    return req.status === tab;
+    return false;
   });
 };
 
@@ -69,7 +81,7 @@ export const PassengerRequests: React.FC = () => {
       refreshAllData();
     }
     fetchMyRatings();
-  }, [location.pathname, refreshAllData, fetchMyRatings]);
+  }, [location.key, location.pathname, refreshAllData, fetchMyRatings]);
 
   // Filter requests matching active tab
   const filteredRequests = filterRequestsByTab(bookingRequests, activeTab);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Bell, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { ToastItem } from '../../contexts/ToastContext';
 import { cn } from '../../utils/cn';
@@ -14,16 +14,16 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
 
   const iconMap = {
     success: <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />,
-    error: <XCircle className="h-5 w-5 text-red-400 shrink-0" />,
+    error: <XCircle className="h-5 w-5 text-rose-400 shrink-0" />,
     warning: <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />,
-    info: <Info className="h-5 w-5 text-sky-400 shrink-0" />,
+    info: <Bell className="h-5 w-5 text-amber-400 shrink-0" />,
   };
 
   const borderColors = {
-    success: 'border-emerald-500/35 bg-emerald-950/20 text-emerald-50',
-    error: 'border-red-500/35 bg-red-950/20 text-red-50',
-    warning: 'border-amber-500/35 bg-amber-950/20 text-amber-50',
-    info: 'border-sky-500/35 bg-sky-950/20 text-sky-50',
+    success: 'border-emerald-500/30 bg-[#16251e]/95 text-emerald-50 border-l-4 border-l-emerald-400',
+    error: 'border-rose-500/30 bg-[#25161a]/95 text-rose-50 border-l-4 border-l-rose-400',
+    warning: 'border-amber-500/30 bg-[#252016]/95 text-amber-50 border-l-4 border-l-amber-400',
+    info: 'border-amber-500/30 bg-[#1c1829]/95 text-slate-100 border-l-4 border-l-amber-400 shadow-2xl',
   };
 
   const handleToastClick = () => {
@@ -42,7 +42,7 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
       transition={{ type: 'spring', stiffness: 350, damping: 25 }}
       onClick={handleToastClick}
       className={cn(
-        "flex gap-3 p-4 rounded-xl border backdrop-blur-md shadow-glass w-full max-w-sm relative text-left overflow-hidden z-[9999]",
+        "flex gap-3 p-4 rounded-xl border backdrop-blur-xl shadow-2xl w-full max-w-sm relative text-left overflow-hidden z-[9999]",
         onClick ? "cursor-pointer hover:scale-[1.02] transition-transform" : "",
         borderColors[type]
       )}
@@ -52,14 +52,24 @@ export const Toast: React.FC<ToastProps> = ({ toast, onDismiss }) => {
 
       {/* Toast Content */}
       <div className="flex-1 space-y-0.5 select-none pr-4">
-        <h4 className="text-xs font-bold leading-snug">{title}</h4>
-        <p className="text-[11px] text-white/70 leading-normal font-medium">{description}</p>
+        <h4 className="text-xs font-bold leading-snug text-white flex items-center justify-between">
+          <span>{title}</span>
+          {onClick && (
+            <span className="text-[9px] uppercase tracking-wider text-amber-400 font-extrabold ml-2 shrink-0">
+              View
+            </span>
+          )}
+        </h4>
+        <p className="text-[11px] text-slate-300 leading-normal font-medium">{description}</p>
       </div>
 
       {/* Manual Dismiss Button */}
       <button 
-        onClick={() => onDismiss(id)}
-        className="text-white/40 hover:text-white/80 transition-colors shrink-0 self-start"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss(id);
+        }}
+        className="text-white/40 hover:text-white/80 transition-colors shrink-0 self-start p-0.5"
         aria-label="Dismiss alert"
       >
         <X className="h-4 w-4" />
