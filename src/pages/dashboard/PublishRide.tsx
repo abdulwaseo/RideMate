@@ -244,6 +244,7 @@ const PublishRideFormInner: React.FC = () => {
                     type="date"
                     error={errors.date?.message}
                     disabled={isSubmitting}
+                    className="min-h-[44px]"
                     {...register('date')}
                   />
 
@@ -252,6 +253,7 @@ const PublishRideFormInner: React.FC = () => {
                     type="time"
                     error={errors.departureTime?.message}
                     disabled={isSubmitting}
+                    className="min-h-[44px]"
                     {...register('departureTime')}
                   />
                 </div>
@@ -264,6 +266,7 @@ const PublishRideFormInner: React.FC = () => {
                     leftIcon={<Users className="h-4.5 w-4.5 text-brand-muted" />}
                     error={errors.availableSeats?.message}
                     disabled={isSubmitting}
+                    className="min-h-[44px]"
                     {...register('availableSeats', { valueAsNumber: true })}
                   />
 
@@ -274,6 +277,7 @@ const PublishRideFormInner: React.FC = () => {
                     leftIcon={<DollarSign className="h-4.5 w-4.5 text-brand-primaryLight" />}
                     error={errors.farePerPassenger?.message}
                     disabled={isSubmitting}
+                    className="min-h-[44px]"
                     {...register('farePerPassenger', { valueAsNumber: true })}
                   />
                 </div>
@@ -326,7 +330,7 @@ const PublishRideFormInner: React.FC = () => {
                 <Button
                   type="submit"
                   variant="primary"
-                  className="w-full py-3.5 rounded-2xl"
+                  className="w-full py-3.5 rounded-2xl min-h-[48px] text-sm font-bold"
                   disabled={!isValid || isSubmitting}
                   isLoading={isSubmitting}
                 >
@@ -343,7 +347,10 @@ const PublishRideFormInner: React.FC = () => {
             <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider mb-3">
               Route Polyline & Distance Map
             </h4>
-            <MapContainer height="380px" />
+            {/* Responsive map: 200px on mobile, 380px on lg+ */}
+            <div className="h-[200px] lg:h-[380px]">
+              <MapContainer height="100%" />
+            </div>
           </div>
 
           <FareEstimateCard />
