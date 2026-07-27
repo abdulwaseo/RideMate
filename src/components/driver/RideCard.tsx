@@ -120,7 +120,7 @@ export const RideCard: React.FC<RideCardProps> = ({ ride, actions, className }) 
 
       {/* Action panel */}
       {actions && (
-        <div className="pt-4 border-t border-brand-border/40 flex items-center justify-end gap-3">
+        <div className="pt-4 border-t border-brand-border/40 flex items-center justify-end gap-3 w-full">
           {actions}
         </div>
       )}

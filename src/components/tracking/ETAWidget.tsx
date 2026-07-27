@@ -29,11 +29,11 @@ export const ETAWidget: React.FC<ETAWidgetProps> = ({ etaData, isLoading, classN
   const isDelayed = etaData?.is_delayed;
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 ${className}`}>
+    <div className={`bg-brand-surface border border-slate-200 rounded-2xl p-3 sm:p-4 ${className}`}>
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <Clock className="w-4 h-4 text-emerald-400" />
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">ETA</span>
+          <span className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">ETA</span>
         </div>
         {isDelayed && (
           <div className="flex items-center gap-1 bg-orange-500/10 border border-orange-500/30 rounded-full px-2 py-0.5">
@@ -44,14 +44,14 @@ export const ETAWidget: React.FC<ETAWidgetProps> = ({ etaData, isLoading, classN
       </div>
 
       {isLoading ? (
-        <div className="h-10 bg-slate-800 rounded-lg animate-pulse" />
+        <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
       ) : (
-        <div className="flex items-end gap-3">
-          <span className="text-4xl font-black text-white tracking-tight leading-none">
+        <div className="flex items-baseline gap-1.5 sm:gap-3 flex-wrap">
+          <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
             {countdown}
           </span>
           {etaData?.current_eta_iso && (
-            <span className="text-sm text-slate-400 pb-1">Arriving {arrivalTime}</span>
+            <span className="text-xs sm:text-sm text-slate-400">Arriving {arrivalTime}</span>
           )}
         </div>
       )}
