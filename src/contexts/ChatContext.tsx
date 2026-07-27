@@ -13,7 +13,7 @@ interface ChatContextType {
   replyingTo: ChatMessage | null;
   totalUnreadCount: number;
   setReplyingTo: (msg: ChatMessage | null) => void;
-  selectRoom: (roomId: string) => void;
+  selectRoom: (roomId: string | null) => void;
   sendMessage: (content: string, replyToId?: string) => Promise<boolean>;
   editMessage: (messageId: string, newContent: string) => Promise<boolean>;
   deleteMessage: (messageId: string) => Promise<boolean>;
@@ -276,7 +276,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [isConnected, subscribe]);
 
-  const selectRoom = useCallback((roomId: string) => {
+  const selectRoom = useCallback((roomId: string | null) => {
     setActiveRoomId(roomId);
     setReplyingTo(null);
   }, []);

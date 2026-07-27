@@ -36,18 +36,19 @@ export const ChatRoom: React.FC = () => {
   }, [id, selectRoom]);
 
   const handleBack = () => {
+    selectRoom(null);
     const rolePath = user?.role === 'driver' ? 'driver' : 'passenger';
     navigate(`/dashboard/${rolePath}/chat`);
   };
 
   if (!activeRoom) {
     return (
-      <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-950">
+      <div className="flex flex-col h-[calc(100dvh-5.5rem)] sm:h-[calc(100vh-4rem)] bg-brand-surface">
         <button
           onClick={handleBack}
-          className="flex items-center gap-2 text-sm text-slate-400 hover:text-white px-4 py-3 border-b border-slate-800 transition"
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 px-4 py-3 min-h-[44px] border-b border-slate-200 transition font-medium"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
           Back to Messages
         </button>
         <div className="flex-1 flex items-center justify-center">
@@ -62,13 +63,13 @@ export const ChatRoom: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[calc(100dvh-5.5rem)] sm:h-[calc(100vh-4rem)] rounded-2xl border border-slate-200 overflow-hidden shadow-2xl bg-brand-surface">
       {/* Mobile back button */}
       <button
         onClick={handleBack}
-        className="sm:hidden flex items-center gap-2 text-sm text-slate-400 hover:text-white px-4 py-2 bg-slate-900 border-b border-slate-800 transition"
+        className="sm:hidden flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-slate-900 px-4 py-3 min-h-[44px] bg-slate-50 border-b border-slate-200 transition"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-5 h-5 text-emerald-600" />
         All Chats
       </button>
 

@@ -48,25 +48,25 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border-t border-slate-800 p-3">
+    <div className="bg-brand-surface border-t border-slate-200 p-2.5 sm:p-3 select-none">
       {/* Replying Banner */}
       {replyingTo && (
-        <div className="mb-2 p-2 bg-slate-800/90 rounded-xl flex items-center justify-between border-l-4 border-emerald-500 text-xs">
+        <div className="mb-2 p-2 bg-slate-100 rounded-xl flex items-center justify-between border-l-4 border-emerald-500 text-xs">
           <div className="line-clamp-1">
-            <span className="font-semibold text-emerald-400">Replying to {replyingTo.sender_name || 'User'}: </span>
-            <span className="text-slate-300">{replyingTo.content}</span>
+            <span className="font-semibold text-emerald-700">Replying to {replyingTo.sender_name || 'User'}: </span>
+            <span className="text-slate-700">{replyingTo.content}</span>
           </div>
-          <button onClick={onCancelReply} className="p-1 hover:text-slate-100 text-slate-400">
-            <X className="w-3.5 h-3.5" />
+          <button onClick={onCancelReply} className="p-1 hover:text-slate-700 text-slate-400 min-w-[28px] min-h-[28px] flex items-center justify-center">
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       <form onSubmit={handleSend} className="flex items-end gap-2">
-        <div className="flex-1 bg-slate-950 border border-slate-800 focus-within:border-emerald-500/60 rounded-2xl px-3 py-2 flex items-end gap-2 transition">
+        <div className="flex-1 bg-slate-50 border border-slate-200 focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500/30 rounded-2xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-end gap-1.5 transition">
           <button
             type="button"
-            className="p-1.5 text-slate-400 hover:text-slate-200 transition rounded-full hover:bg-slate-800/50"
+            className="p-2 text-slate-400 hover:text-slate-700 transition rounded-full hover:bg-slate-200/50 min-w-[36px] min-h-[36px] flex items-center justify-center"
             title="Attach File (Placeholder)"
           >
             <Paperclip className="w-4 h-4" />
@@ -79,12 +79,12 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             placeholder="Type a message..."
-            className="flex-1 bg-transparent text-white text-sm focus:outline-none resize-none max-h-24 overflow-y-auto leading-relaxed"
+            className="flex-1 bg-transparent text-slate-900 text-sm placeholder-slate-400 focus:outline-none resize-none max-h-24 py-1 overflow-y-auto leading-relaxed"
           />
 
           <button
             type="button"
-            className="p-1.5 text-slate-400 hover:text-slate-200 transition rounded-full hover:bg-slate-800/50"
+            className="p-2 text-slate-400 hover:text-slate-700 transition rounded-full hover:bg-slate-200/50 min-w-[36px] min-h-[36px] flex items-center justify-center"
             title="Emoji (Placeholder)"
           >
             <Smile className="w-4 h-4" />
@@ -94,9 +94,10 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <button
           type="submit"
           disabled={!text.trim() || isSubmitting}
-          className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition transform active:scale-95 flex items-center justify-center"
+          className="min-w-[44px] min-h-[44px] p-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition transform active:scale-95 flex items-center justify-center"
+          aria-label="Send Message"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-4.5 h-4.5" />
         </button>
       </form>
     </div>

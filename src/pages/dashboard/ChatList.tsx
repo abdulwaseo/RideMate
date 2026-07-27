@@ -36,6 +36,8 @@ export const ChatList: React.FC = () => {
   useEffect(() => {
     if (roomId) {
       selectRoom(roomId);
+    } else {
+      selectRoom(null);
     }
   }, [roomId, selectRoom]);
 
@@ -51,7 +53,7 @@ export const ChatList: React.FC = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex overflow-hidden rounded-2xl border border-slate-800 shadow-2xl bg-slate-950">
+    <div className="h-[calc(100dvh-5.5rem)] sm:h-[calc(100vh-4rem)] flex overflow-hidden rounded-2xl border border-slate-200 shadow-2xl bg-brand-surface">
       {/* Sidebar — always visible on desktop, hidden on mobile when room is selected */}
       <div className={`w-full sm:w-80 flex-shrink-0 ${activeRoom ? 'hidden sm:flex' : 'flex'} flex-col`}>
         <ChatSidebar

@@ -57,7 +57,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       )}
 
       <div
-        className={`relative max-w-[82%] sm:max-w-[70%] px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-all ${
+        className={`relative max-w-[85%] sm:max-w-[70%] px-3.5 sm:px-4 py-2.5 rounded-2xl text-sm shadow-sm transition-all ${
           isSelf
             ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-tr-none'
             : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-tl-none'
