@@ -20,13 +20,13 @@ class Settings(BaseSettings):
 
 
     # Security settings
-    SECRET_KEY: str = "fallback_super_secret_key_change_in_production"
+    SECRET_KEY: str  # Required via environment / .env — fails startup if not set
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Database URLs
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://ridemate_user:dtcc123@localhost:5432/ridemate_db")
+    DATABASE_URL: str  # Required via environment / .env — fails startup if not set
 
     # CORS origins resolver
     CORS_ORIGINS: Union[str, List[str]] = [

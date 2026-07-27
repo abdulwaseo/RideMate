@@ -76,8 +76,6 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [ridesList, setRidesList] = useState<Ride[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const passengerId = user?.mobileNumber || '';
-
   const getToken = () => getAuthToken();
 
   // Initial load: fetch all upcoming rides from backend
@@ -106,11 +104,30 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [fetchAllRides]);
 
   // Booking requests submitted by this passenger
+  const userId = user?.id || '';
+  const userMobile = user?.mobileNumber || '';
+
   const bookingRequests = centralRequests.filter((req) => {
-    if (!passengerId) return false;
-    const reqDigits = req.passengerId.replace(/\D/g, '');
-    const userDigits = passengerId.replace(/\D/g, '');
-    return req.passengerId === passengerId || (reqDigits.length > 0 && reqDigits === userDigits);
+    if (!userId && !userMobile) return false;
+
+    // 1. Prefer matching UUID (req.passengerId vs user.id)
+    if (userId && req.passengerId === userId) return true;
+
+    // 2. Match passengerMobileNumber vs user.mobileNumber
+    if (userMobile && req.passengerMobileNumber) {
+      const reqMobileDigits = req.passengerMobileNumber.replace(/\D/g, '');
+      const userMobileDigits = userMobile.replace(/\D/g, '');
+      if (reqMobileDigits.length > 0 && reqMobileDigits === userMobileDigits) return true;
+    }
+
+    // 3. Fallback mobile/digits matching against req.passengerId
+    if (userMobile) {
+      const reqDigits = req.passengerId.replace(/\D/g, '');
+      const userDigits = userMobile.replace(/\D/g, '');
+      return req.passengerId === userMobile || (reqDigits.length > 0 && userDigits.length > 0 && reqDigits === userDigits);
+    }
+
+    return false;
   });
 
   // Passenger ride history from completed/cancelled/rejected booking requests only
@@ -156,8 +173,6 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       params.append('page', '1');
       params.append('size', '50');
 
-      console.log('[PassengerContext] Searching rides with params:', params.toString());
-
       const res = await fetch(`http://localhost:8000/api/v1/rides?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -165,7 +180,6 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (res.ok) {
         const json = await res.json();
         const mapped = (json.data || []).map(mapSummaryToRide);
-        console.log(`[PassengerContext] Search returned ${mapped.length} rides`);
         setSearchResults(mapped);
       }
     } catch (err) {

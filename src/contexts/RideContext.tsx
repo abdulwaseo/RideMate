@@ -37,12 +37,13 @@ export interface BookingRequest {
   rideId: string;
   ride: Ride;
   passengerId: string; // Passenger's mobile number matching auth context
+  passengerMobileNumber?: string;
   passengerName: string;
   passengerRating: number;
   requestedSeats: number;
   officeName: string;
   requestTime: string;
-  status: 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled';
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled' | 'Completed';
   requestDate: string;
 }
 
@@ -173,9 +174,9 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     rideId: r.ride_id || r.ride_summary?.id || '',
     ride: {
       id: r.ride_id || r.ride_summary?.id || '',
-      driverId: '',
+      driverId: r.ride_summary?.driver_id || '',
       driver: {
-        name: 'Driver',
+        name: r.ride_summary?.driver_name || 'Driver',
         rating: 4.8,
         officeName: '',
         vehicleType: 'Car' as const,
@@ -192,9 +193,14 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalSeats: r.ride_summary?.available_seats || 0,
       farePerPassenger: r.ride_summary?.fare_per_passenger || 0,
       estimatedDuration: '25 mins',
-      status: 'Upcoming' as const,
+      status: (r.ride_summary?.status === 'Cancelled' || r.ride_summary?.status === 'CANCELLED') ? 'Cancelled'
+            : (r.ride_summary?.status === 'Completed' || r.ride_summary?.status === 'COMPLETED') ? 'Completed'
+            : (r.ride_summary?.status === 'Active' || r.ride_summary?.status === 'ACTIVE') ? 'Active'
+            : (r.ride_summary?.status === 'Full' || r.ride_summary?.status === 'FULL') ? 'Full'
+            : 'Upcoming',
     },
-    passengerId: r.passenger_summary?.mobile_number || r.passenger_id || '',
+    passengerId: r.passenger_id || r.passenger_summary?.id || r.passenger_summary?.mobile_number || '',
+    passengerMobileNumber: r.passenger_summary?.mobile_number || '',
     passengerName: r.passenger_summary?.name || 'Passenger',
     passengerRating: 4.9,
     requestedSeats: r.requested_seats || 1,
@@ -406,7 +412,8 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Format departure_date to YYYY-MM-DD (must not be past)
-      const todayStr = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const departureDate = rideData.date && rideData.date >= todayStr ? rideData.date : todayStr;
 
       const payload = {
@@ -564,9 +571,6 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
           requested_seats: requestedSeats,
         }),
       });
-
-      const json = await res.json();
-      console.log('[RideContext] POST /api/v1/ride-requests:', res.status, JSON.stringify(json));
 
       if (res.ok || res.status === 201) {
         await refreshAllRequests();
