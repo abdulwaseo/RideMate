@@ -3,7 +3,7 @@ import { CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 interface RideTimelineProps {
-  status: 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled';
+  status: 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled' | 'Completed';
   rideStatus: 'Upcoming' | 'Active' | 'Full' | 'Completed' | 'Cancelled';
   className?: string;
 }

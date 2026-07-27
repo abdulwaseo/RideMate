@@ -61,7 +61,7 @@ export const NotificationCenter: React.FC = () => {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition border ${
               activeTab === 'inbox'
                 ? 'bg-emerald-600 border-emerald-500 text-white'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                : 'bg-brand-surface border-slate-200 text-slate-600 hover:text-slate-900'
             }`}
           >
             <Inbox className="w-4 h-4" />
@@ -78,7 +78,7 @@ export const NotificationCenter: React.FC = () => {
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition border ${
               activeTab === 'settings'
                 ? 'bg-emerald-600 border-emerald-500 text-white'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                : 'bg-brand-surface border-slate-200 text-slate-600 hover:text-slate-900'
             }`}
           >
             <Settings className="w-4 h-4" />
@@ -125,7 +125,7 @@ export const NotificationCenter: React.FC = () => {
             {isLoading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((n) => (
-                  <div key={n} className="h-20 bg-slate-900 rounded-2xl animate-pulse border border-slate-800" />
+                  <div key={n} className="h-20 bg-slate-100 rounded-2xl animate-pulse border border-slate-200" />
                 ))}
               </div>
             ) : filteredNotifications.length > 0 ? (

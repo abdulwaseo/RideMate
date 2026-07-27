@@ -37,6 +37,7 @@ class WSEventType(str, Enum):
     RIDE_PAUSED = "ride_paused"
     RIDE_RESUMED = "ride_resumed"
     RIDE_COMPLETED = "ride_completed"
+    RATING_UPDATED = "rating_updated"
     TRACKING_STOPPED = "tracking_stopped"
     NOTIFICATION_CREATED = "notification_created"
     NOTIFICATION_UPDATED = "notification_updated"

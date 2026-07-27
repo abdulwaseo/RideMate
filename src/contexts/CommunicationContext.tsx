@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useRef, useCallb
 import { useAuth } from '../hooks/useAuth';
 import { getAuthToken } from '../utils/token';
 import { useRide } from './RideContext';
+import { API_V1_URL } from '../config/api';
 
 export interface Participant {
   id: string; // mobileNumber
@@ -79,7 +80,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     const fetchNotifications = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch('http://localhost:8000/api/v1/notifications', {
+        const res = await fetch(`${API_V1_URL}/notifications`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -132,7 +133,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!user) return;
       try {
         const token = getAuthToken();
-        const res = await fetch('http://localhost:8000/api/v1/chat/rooms', {
+        const res = await fetch(`${API_V1_URL}/chat/rooms`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {

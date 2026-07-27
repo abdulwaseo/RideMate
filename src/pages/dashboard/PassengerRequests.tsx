@@ -1,27 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { BookingSummaryCard } from '../../components/passenger/BookingSummaryCard';
+import { PassengerRateDriverModal } from '../../components/passenger/PassengerRateDriverModal';
 import { usePassenger } from '../../hooks/usePassenger';
+import { getAuthToken } from '../../utils/token';
+import type { BookingRequest } from '../../contexts/RideContext';
 
-type TabStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled';
+type TabStatus = 'Pending' | 'Accepted' | 'Rejected' | 'Cancelled' | 'Completed';
+
+const filterRequestsByTab = (requests: BookingRequest[], tab: TabStatus) => {
+  return requests.filter((req) => {
+    if (tab === 'Accepted') {
+      return req.status === 'Accepted' && req.ride.status !== 'Completed';
+    }
+    if (tab === 'Completed') {
+      return req.status === 'Completed' || (req.status === 'Accepted' && req.ride.status === 'Completed');
+    }
+    return req.status === tab;
+  });
+};
+
+import { API_V1_URL } from '../../config/api';
 
 export const PassengerRequests: React.FC = () => {
   const { bookingRequests, cancelBookingRequest, isLoading, refreshAllData } = usePassenger();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabStatus>('Pending');
+  const [ratedRideIds, setRatedRideIds] = useState<Set<string>>(new Set());
+
+  // Modal state for rating driver
+  const [rateDriverModal, setRateDriverModal] = useState<{
+    isOpen: boolean;
+    rideId: string;
+    driverId: string;
+    driverName: string;
+    routeName?: string;
+  }>({
+    isOpen: false,
+    rideId: '',
+    driverId: '',
+    driverName: '',
+  });
+
+  const fetchMyRatings = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch(`${API_V1_URL}/ratings/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const ratings = json.data || [];
+        const ids = new Set<string>(ratings.map((r: any) => r.ride_id));
+        setRatedRideIds(ids);
+      }
+    } catch (err) {
+      console.warn('[PassengerRequests] Fetch my ratings error:', err);
+    }
+  }, []);
 
   useEffect(() => {
     if (refreshAllData) {
       refreshAllData();
     }
-  }, [location.pathname, refreshAllData]);
+    fetchMyRatings();
+  }, [location.pathname, refreshAllData, fetchMyRatings]);
 
   // Filter requests matching active tab
-  const filteredRequests = bookingRequests.filter((req) => req.status === activeTab);
+  const filteredRequests = filterRequestsByTab(bookingRequests, activeTab);
 
   const handleCancel = async (id: string) => {
     if (window.confirm('Are you sure you want to cancel this booking request?')) {
@@ -33,7 +84,17 @@ export const PassengerRequests: React.FC = () => {
     navigate(`/dashboard/passenger/ride-details/${rideId}`);
   };
 
-  const tabs: TabStatus[] = ['Pending', 'Accepted', 'Rejected', 'Cancelled'];
+  const handleOpenRateDriverModal = (req: BookingRequest) => {
+    setRateDriverModal({
+      isOpen: true,
+      rideId: req.ride.id,
+      driverId: req.ride.driverId,
+      driverName: req.ride.driver.name,
+      routeName: `${req.ride.pickupArea} → ${req.ride.destination}`,
+    });
+  };
+
+  const tabs: TabStatus[] = ['Pending', 'Accepted', 'Rejected', 'Cancelled', 'Completed'];
 
   return (
     <div className="space-y-8 text-left select-none max-w-4xl">
@@ -47,7 +108,7 @@ export const PassengerRequests: React.FC = () => {
       {/* Tabs list */}
       <div className="flex border-b border-brand-border/40 gap-1.5 overflow-x-auto pb-1 select-none">
         {tabs.map((tab) => {
-          const count = bookingRequests.filter((r) => r.status === tab).length;
+          const count = filterRequestsByTab(bookingRequests, tab).length;
           const isActive = activeTab === tab;
           
           return (
@@ -90,6 +151,8 @@ export const PassengerRequests: React.FC = () => {
                     request={req}
                     onCancelRequest={handleCancel}
                     onViewRideDetails={handleViewRide}
+                    onRateDriver={handleOpenRateDriverModal}
+                    isAlreadyRated={ratedRideIds.has(req.ride.id)}
                   />
                 </motion.div>
               ))}
@@ -115,6 +178,20 @@ export const PassengerRequests: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Fallback Rate Driver Modal */}
+      <PassengerRateDriverModal
+        isOpen={rateDriverModal.isOpen}
+        onClose={() => setRateDriverModal((prev) => ({ ...prev, isOpen: false }))}
+        rideId={rateDriverModal.rideId}
+        driverId={rateDriverModal.driverId}
+        driverName={rateDriverModal.driverName}
+        routeName={rateDriverModal.routeName}
+        onSubmitted={() => {
+          setRatedRideIds((prev) => new Set(prev).add(rateDriverModal.rideId));
+          fetchMyRatings();
+        }}
+      />
 
     </div>
   );

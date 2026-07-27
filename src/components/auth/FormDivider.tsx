@@ -11,7 +11,7 @@ export const FormDivider: React.FC<FormDividerProps> = ({ text = 'or' }) => {
         <div className="w-full border-t border-brand-border/40" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-brand-surface sm:bg-[#0c1322] px-3.5 text-brand-textMuted tracking-wider font-semibold">
+        <span className="bg-brand-surface px-3.5 text-brand-textMuted tracking-wider font-semibold">
           {text}
         </span>
       </div>

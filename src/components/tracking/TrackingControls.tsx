@@ -76,25 +76,25 @@ export const TrackingControls: React.FC<TrackingControlsProps> = ({
           <button
             onClick={() => handlePhase('ride_started')}
             disabled={phase === 'RideInProgress'}
-            className="flex flex-col items-center gap-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 text-xs font-medium py-3 px-2 rounded-xl transition"
+            className="flex flex-col items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 disabled:opacity-40 text-slate-700 text-xs font-medium py-3 px-2 rounded-xl transition"
           >
-            <Navigation className="w-4 h-4 text-blue-400" />
+            <Navigation className="w-4 h-4 text-blue-500" />
             Ride Started
           </button>
           <button
             onClick={() => handlePhase('passenger_picked_up')}
             disabled={phase === 'PassengerPickup' || phase === 'Preparing'}
-            className="flex flex-col items-center gap-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 text-xs font-medium py-3 px-2 rounded-xl transition"
+            className="flex flex-col items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 disabled:opacity-40 text-slate-700 text-xs font-medium py-3 px-2 rounded-xl transition"
           >
-            <UserCheck className="w-4 h-4 text-orange-400" />
+            <UserCheck className="w-4 h-4 text-orange-500" />
             Picked Up
           </button>
           <button
             onClick={() => handlePhase('ride_completed')}
             disabled={phase === 'Completed'}
-            className="flex flex-col items-center gap-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 text-xs font-medium py-3 px-2 rounded-xl transition"
+            className="flex flex-col items-center gap-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 disabled:opacity-40 text-slate-700 text-xs font-medium py-3 px-2 rounded-xl transition"
           >
-            <Flag className="w-4 h-4 text-emerald-400" />
+            <Flag className="w-4 h-4 text-emerald-500" />
             Complete
           </button>
         </div>

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback, use
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
 import { getAuthToken, clearAuthToken } from '../utils/token';
+import { API_V1_URL } from '../config/api';
 
 // Reusable interfaces for Sprint 5 lifecycle coordinating
 export interface Driver {
@@ -135,7 +136,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       startLoading();
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8000/api/v1/rides', {
+      const res = await fetch(`${API_V1_URL}/rides`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -154,7 +155,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = getAuthToken();
     if (!token || user?.role !== 'driver') return;
     try {
-      const res = await fetch('http://localhost:8000/api/v1/rides/driver/rides', {
+      const res = await fetch(`${API_V1_URL}/rides/driver/rides`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 403) return;
@@ -218,7 +219,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = getAuthToken();
     if (!token) return [];
     try {
-      const res = await fetch('http://localhost:8000/api/v1/ride-requests/my', {
+      const res = await fetch(`${API_V1_URL}/ride-requests/my`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -235,7 +236,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = getAuthToken();
     if (!token || user?.role !== 'driver') return [];
     try {
-      const res = await fetch('http://localhost:8000/api/v1/drivers/requests', {
+      const res = await fetch(`${API_V1_URL}/drivers/requests`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 403) return [];
@@ -428,7 +429,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ride_notes: rideData.description || null,
       };
 
-      const res = await fetch('http://localhost:8000/api/v1/rides', {
+      const res = await fetch(`${API_V1_URL}/rides`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -472,7 +473,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}`, {
+      const res = await fetch(`${API_V1_URL}/rides/${rideId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -506,7 +507,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}/cancel`, {
+      const res = await fetch(`${API_V1_URL}/rides/${rideId}/cancel`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -529,7 +530,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/rides/${rideId}/complete`, {
+      const res = await fetch(`${API_V1_URL}/rides/${rideId}/complete`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -560,7 +561,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8000/api/v1/ride-requests', {
+      const res = await fetch(`${API_V1_URL}/ride-requests`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -590,7 +591,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = getAuthToken();
       // Passenger cancels their own pending or accepted request via DELETE
-      const res = await fetch(`http://localhost:8000/api/v1/ride-requests/${requestId}`, {
+      const res = await fetch(`${API_V1_URL}/ride-requests/${requestId}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -621,7 +622,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/drivers/requests/${requestId}/accept`, {
+      const res = await fetch(`${API_V1_URL}/drivers/requests/${requestId}/accept`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -644,7 +645,7 @@ export const RideProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startLoading();
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/drivers/requests/${requestId}/reject`, {
+      const res = await fetch(`${API_V1_URL}/drivers/requests/${requestId}/reject`, {
         method: 'PATCH',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

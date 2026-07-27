@@ -18,7 +18,7 @@ export const GPSIndicator: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center space-x-2 bg-gray-900/90 border border-gray-800 rounded-xl px-3 py-1.5 backdrop-blur-md shadow-lg">
+    <div className="flex items-center space-x-2 bg-white/90 border border-slate-200 rounded-xl px-3 py-1.5 backdrop-blur-md shadow-lg">
       <div className="relative flex items-center justify-center">
         <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor()}`}></div>
         {trackingStatus === 'tracking' && (
@@ -27,7 +27,7 @@ export const GPSIndicator: React.FC = () => {
       </div>
 
       <div className="flex flex-col text-left">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
           {trackingStatus === 'tracking'
             ? 'GPS Active'
             : trackingStatus === 'locating'
@@ -37,7 +37,7 @@ export const GPSIndicator: React.FC = () => {
             : 'GPS Idle'}
         </span>
         {driverLocation?.accuracy && (
-          <span className="text-[9px] text-gray-500">±{Math.round(driverLocation.accuracy)}m accuracy</span>
+          <span className="text-[9px] text-slate-500">±{Math.round(driverLocation.accuracy)}m accuracy</span>
         )}
       </div>
     </div>

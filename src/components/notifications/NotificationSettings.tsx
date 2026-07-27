@@ -19,9 +19,9 @@ export const NotificationSettings: React.FC = () => {
 
   if (!preferences) {
     return (
-      <div className="p-6 bg-slate-900 rounded-2xl border border-slate-800 animate-pulse space-y-4">
-        <div className="h-4 bg-slate-800 rounded w-1/3" />
-        <div className="h-10 bg-slate-800 rounded" />
+      <div className="p-6 bg-brand-surface rounded-2xl border border-slate-200 animate-pulse space-y-4">
+        <div className="h-4 bg-slate-100 rounded w-1/3" />
+        <div className="h-10 bg-slate-100 rounded" />
       </div>
     );
   }
@@ -72,14 +72,14 @@ export const NotificationSettings: React.FC = () => {
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+    <div className="bg-brand-surface border border-slate-200 rounded-2xl p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Bell className="w-5 h-5 text-emerald-400" />
             Notification Preferences
           </h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Choose which channels and categories trigger notifications.
           </p>
         </div>
@@ -94,11 +94,11 @@ export const NotificationSettings: React.FC = () => {
         )}
       </div>
 
-      <div className="divide-y divide-slate-800/60">
+      <div className="divide-y divide-slate-200">
         {items.map((item) => (
           <div key={item.key} className="py-4 flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-slate-800 border border-slate-700/50 flex-shrink-0">
+              <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 flex-shrink-0">
                 {item.icon}
               </div>
               <div>
@@ -111,7 +111,7 @@ export const NotificationSettings: React.FC = () => {
               onClick={() => handleToggle(item.key, item.value)}
               disabled={isSaving}
               className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                item.value ? 'bg-emerald-600' : 'bg-slate-800'
+                item.value ? 'bg-emerald-600' : 'bg-slate-200'
               }`}
             >
               <span

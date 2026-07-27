@@ -27,7 +27,7 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-[#05070d] border-t border-brand-border/40 py-12 md:py-16 relative overflow-hidden select-none">
+    <footer className="bg-brand-surface border-t border-brand-border/40 py-12 md:py-16 relative overflow-hidden select-none">
       {/* Decorative backdrop light */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-40 rounded-full bg-brand-primary/5 blur-[80px] pointer-events-none" />
 

@@ -14,6 +14,7 @@ from app.repositories.rating import RatingRepository
 from app.repositories.ride import RideRepository
 from app.schemas.enums import ConfirmedBookingStatus, RideStatus
 from app.schemas.rating import (
+    BatchRatingCreate,
     RatingCreate,
     RatingResponse,
     RatingUpdate,
@@ -67,7 +68,7 @@ class RatingService:
         reviewer_booking = self.db.query(Booking).filter(
             Booking.ride_id == ride.id,
             Booking.passenger_id == user.id,
-            Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
+            Booking.booking_status.in_([ConfirmedBookingStatus.CONFIRMED, ConfirmedBookingStatus.COMPLETED]),
             Booking.is_deleted == False,
         ).first()
 
@@ -84,7 +85,7 @@ class RatingService:
         reviewee_booking = self.db.query(Booking).filter(
             Booking.ride_id == ride.id,
             Booking.passenger_id == payload.reviewee_id,
-            Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
+            Booking.booking_status.in_([ConfirmedBookingStatus.CONFIRMED, ConfirmedBookingStatus.COMPLETED]),
             Booking.is_deleted == False,
         ).first()
 
@@ -94,12 +95,12 @@ class RatingService:
                 detail="[RATING_004] Target reviewee was not a participant of this ride.",
             )
 
-        # Rule 4: Single rating per ride constraint
-        existing = self.rating_repo.get_by_ride_and_reviewer(payload.ride_id, user.id)
+        # Rule 4: Single rating per (rater, ratee, ride) constraint
+        existing = self.rating_repo.get_by_ride_reviewer_and_reviewee(payload.ride_id, user.id, payload.reviewee_id)
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="[RATING_005] You have already submitted a rating for this ride.",
+                detail="[RATING_005] You have already submitted a rating for this user on this ride.",
             )
 
         rating = self.rating_repo.create(
@@ -112,7 +113,43 @@ class RatingService:
 
         self.db.commit()
         self.db.refresh(rating)
+
+        # Broadcast RATING_UPDATED WebSocket event to reviewee so their rating counter updates in real time
+        try:
+            from app.schemas.websocket import WSEvent, WSEventType
+            from app.websocket.connection_manager import safe_broadcast_to_room
+
+            avg_score, total_count = self.rating_repo.calculate_user_rating(payload.reviewee_id)
+            ws_event = WSEvent(
+                event_type=WSEventType.RATING_UPDATED.value,
+                payload={
+                    "user_id": str(payload.reviewee_id),
+                    "average_rating": avg_score,
+                    "total_ratings": total_count,
+                    "latest_score": payload.score,
+                    "ride_id": str(payload.ride_id),
+                },
+            )
+            safe_broadcast_to_room(f"user:{payload.reviewee_id}", ws_event)
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to broadcast RATING_UPDATED WebSocket event: {e}")
+
         return self._format_rating_response(rating)
+
+    def batch_create_ratings(self, user: User, payload: BatchRatingCreate) -> List[RatingResponse]:
+        """Submit ratings for multiple users in a single request."""
+        responses = []
+        for item in payload.ratings:
+            try:
+                resp = self.create_rating(user, item)
+                responses.append(resp)
+            except HTTPException as e:
+                # If a single item in batch is already submitted, skip gracefully
+                if e.status_code == status.HTTP_409_CONFLICT:
+                    continue
+                raise e
+        return responses
 
     def update_rating(self, user: User, rating_id: UUID, payload: RatingUpdate) -> RatingResponse:
         """Update existing rating within 24 hours of creation."""

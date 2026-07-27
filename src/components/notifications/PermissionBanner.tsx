@@ -15,14 +15,14 @@ export const PermissionBanner: React.FC = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-lg mb-6">
+    <div className="bg-gradient-to-r from-emerald-50 via-white to-slate-50 border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-sm mb-6">
       <div className="flex items-center gap-3">
-        <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
+        <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-600 border border-emerald-200 flex-shrink-0">
           <Bell className="w-5 h-5 animate-bounce" />
         </div>
         <div>
-          <h4 className="text-sm font-bold text-white">Enable Real-Time Push Notifications</h4>
-          <p className="text-xs text-slate-400">
+          <h4 className="text-sm font-bold text-slate-900">Enable Real-Time Push Notifications</h4>
+          <p className="text-xs text-slate-600">
             Get instant desktop popups when your ride driver arrives or bookings change.
           </p>
         </div>
@@ -37,7 +37,7 @@ export const PermissionBanner: React.FC = () => {
         </button>
         <button
           onClick={() => setDismissed(true)}
-          className="text-slate-500 hover:text-white p-2 rounded-xl transition"
+          className="text-slate-400 hover:text-slate-700 p-2 rounded-xl transition"
         >
           <X className="w-4 h-4" />
         </button>

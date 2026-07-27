@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[#070a13] lg:bg-transparent">
+    <div className="flex flex-col h-full bg-brand-surface lg:bg-transparent">
       {/* Sidebar Header */}
       <div className={cn(
         "flex items-center justify-between p-5 border-b border-brand-border/40",
@@ -164,7 +164,7 @@ export const Sidebar: React.FC = () => {
           onClick={toggleMobileSidebar}
         >
           <aside 
-            className="fixed top-0 bottom-0 left-0 w-72 bg-[#070a13] border-r border-brand-border/50 shadow-2xl"
+            className="fixed top-0 bottom-0 left-0 w-72 bg-brand-surface border-r border-brand-border/50 shadow-2xl"
             onClick={(e) => e.stopPropagation()} // Prevent closing when clicking drawer content
           >
             {sidebarContent}

@@ -1,4 +1,5 @@
 import type { ConnectionStatus, WSEvent, WSEventType } from '../../types/websocket';
+import { WS_BASE_URL } from '../../config/api';
 
 type MessageCallback = (event: WSEvent) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
@@ -27,9 +28,8 @@ export class SocketClient {
     this.token = token;
     this.setStatus(this.reconnectAttempts > 0 ? 'RECONNECTING' : 'CONNECTING');
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-    const wsUrl = `${protocol}//${host}/ws?token=${encodeURIComponent(token)}`;
+    const baseUrl = WS_BASE_URL.endsWith('/') ? WS_BASE_URL.slice(0, -1) : WS_BASE_URL;
+    const wsUrl = `${baseUrl}/ws?token=${encodeURIComponent(token)}`;
 
     try {
       this.ws = new WebSocket(wsUrl);

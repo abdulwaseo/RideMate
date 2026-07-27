@@ -29,6 +29,8 @@ class RideBrief(BaseModel):
     departure_time: str
     fare_per_passenger: float
     status: RideStatus
+    driver_id: Optional[UUID] = None
+    driver_name: Optional[str] = None
 
     class Config:
         from_attributes = True

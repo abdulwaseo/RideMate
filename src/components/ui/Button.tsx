@@ -29,8 +29,8 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-bg focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed select-none';
 
   const variants = {
-    primary: 'bg-gradient-to-r from-brand-primary to-brand-primaryDark text-brand-bg hover:brightness-110 shadow-glass-glow focus:ring-brand-primary',
-    secondary: 'bg-gradient-to-r from-brand-accent to-brand-accentDark text-brand-text hover:brightness-110 shadow-glass focus:ring-brand-accent',
+    primary: 'bg-gradient-to-r from-brand-primary to-brand-primaryDark text-white hover:brightness-105 shadow-glass-glow focus:ring-brand-primary',
+    secondary: 'bg-gradient-to-r from-brand-accent to-brand-accentDark text-white hover:brightness-105 shadow-glass focus:ring-brand-accent',
     glass: 'glass-panel bg-white/[0.03] text-brand-text border-brand-border hover:bg-white/[0.08] hover:border-brand-borderHover shadow-glass focus:ring-brand-muted',
     link: 'bg-transparent text-brand-primary hover:text-brand-primaryLight hover:underline underline-offset-4 focus:ring-brand-primary focus:ring-offset-0 px-0 py-0',
     danger: 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 focus:ring-red-500',

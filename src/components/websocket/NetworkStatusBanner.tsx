@@ -1,11 +1,13 @@
 import React from 'react';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useAuth } from '../../hooks/useAuth';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
 export const NetworkStatusBanner: React.FC = () => {
   const { status, reconnect } = useWebSocket();
+  const { isAuthenticated } = useAuth();
 
-  if (status === 'CONNECTED') {
+  if (!isAuthenticated || status === 'CONNECTED') {
     return null;
   }
 

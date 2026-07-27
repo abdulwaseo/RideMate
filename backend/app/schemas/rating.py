@@ -35,6 +35,12 @@ class RatingCreate(BaseModel):
         return v
 
 
+class BatchRatingCreate(BaseModel):
+    """Payload to submit multiple ratings at once (e.g. driver rating multiple passengers)."""
+
+    ratings: List[RatingCreate]
+
+
 class RatingUpdate(BaseModel):
     """Payload to update an existing rating within 24 hours."""
 

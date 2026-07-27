@@ -24,6 +24,8 @@ import { usePassenger } from '../../hooks/usePassenger';
 import { getAuthToken } from '../../utils/token';
 import type { Ride } from '../../contexts/RideContext';
 
+import { API_V1_URL } from '../../config/api';
+
 export const RideDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { ridesList, searchResults, bookingRequests, createBookingRequest } = usePassenger();
@@ -57,7 +59,7 @@ export const RideDetails: React.FC = () => {
       }
       try {
         const token = getAuthToken();
-        const res = await fetch(`http://localhost:8000/api/v1/rides/${id}`, {
+        const res = await fetch(`${API_V1_URL}/rides/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 

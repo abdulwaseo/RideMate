@@ -31,6 +31,15 @@ class RatingRepository:
             Rating.is_deleted == False,
         ).first()
 
+    def get_by_ride_reviewer_and_reviewee(self, ride_id: UUID, reviewer_id: UUID, reviewee_id: UUID) -> Optional[Rating]:
+        """Find existing rating submitted by reviewer for specific reviewee on a ride."""
+        return self.db.query(Rating).filter(
+            Rating.ride_id == ride_id,
+            Rating.reviewer_id == reviewer_id,
+            Rating.reviewee_id == reviewee_id,
+            Rating.is_deleted == False,
+        ).first()
+
     def list_by_reviewee(self, reviewee_id: UUID, limit: int = 20) -> List[Rating]:
         """List reviews received by reviewee."""
         return self.db.query(Rating).options(

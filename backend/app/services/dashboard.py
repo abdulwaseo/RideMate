@@ -49,7 +49,7 @@ class StatisticsService:
         if completed_ride_ids:
             confirmed_bookings = self.db.query(Booking).filter(
                 Booking.ride_id.in_(completed_ride_ids),
-                Booking.booking_status == ConfirmedBookingStatus.CONFIRMED,
+                Booking.booking_status.in_([ConfirmedBookingStatus.CONFIRMED, ConfirmedBookingStatus.COMPLETED]),
                 Booking.is_deleted == False,
             ).all()
 
@@ -85,7 +85,7 @@ class StatisticsService:
         cancelled_trips = sum(1 for b in bookings if b.booking_status == ConfirmedBookingStatus.CANCELLED)
 
         for b in bookings:
-            if b.booking_status == ConfirmedBookingStatus.CONFIRMED and b.ride:
+            if b.booking_status in [ConfirmedBookingStatus.CONFIRMED, ConfirmedBookingStatus.COMPLETED] and b.ride:
                 if b.ride.status == RideStatus.COMPLETED:
                     completed_trips += 1
                 elif b.ride.status in [RideStatus.UPCOMING, RideStatus.ACTIVE, RideStatus.FULL]:

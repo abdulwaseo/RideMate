@@ -3,13 +3,10 @@ import { PageHeader } from '../../components/ui/PageHeader';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../hooks/useAuth';
 import { 
   Sun, 
-  Moon, 
-  Monitor, 
   Shield, 
   Bell, 
   Lock, 
@@ -21,7 +18,6 @@ import { cn } from '../../utils/cn';
 type SettingsTab = 'Appearance' | 'Security' | 'Privacy' | 'Notifications';
 
 export const Settings: React.FC = () => {
-  const { theme, setTheme } = useTheme();
   const { addToast } = useToast();
   const { logout } = useAuth();
   
@@ -127,36 +123,11 @@ export const Settings: React.FC = () => {
             <Card hoverEffect={false} className="border border-brand-border/40 bg-brand-card/25 p-6 space-y-6">
               <div>
                 <h3 className="text-sm font-bold text-brand-text mb-1">Visual Appearance</h3>
-                <p className="text-xs text-brand-textMuted">Choose how RideMate dashboard elements should render on your display.</p>
-              </div>
-
-              {/* Theme selectors grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  { id: 'light', label: 'Light Mode', icon: <Sun className="h-4.5 w-4.5 text-amber-500" /> },
-                  { id: 'dark', label: 'Dark Mode', icon: <Moon className="h-4.5 w-4.5 text-brand-primaryLight" /> },
-                  { id: 'system', label: 'System Mode', icon: <Monitor className="h-4.5 w-4.5 text-blue-400" /> },
-                ].map((t) => {
-                  const active = theme === t.id;
-                  
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => setTheme(t.id as any)}
-                      className={cn(
-                        "p-4 rounded-2xl border bg-brand-card/10 cursor-pointer flex flex-col items-center justify-center gap-2 text-center transition-all hover:bg-white/[0.01]",
-                        active ? "border-brand-primary bg-brand-primary/5 text-brand-primaryLight" : "border-brand-border/60 text-brand-textMuted"
-                      )}
-                    >
-                      {t.icon}
-                      <span className="text-xs font-bold">{t.label}</span>
-                    </div>
-                  );
-                })}
+                <p className="text-xs text-brand-textMuted">Configure your commuter preferences and interface settings.</p>
               </div>
 
               {/* Language Selection */}
-              <div className="pt-4 border-t border-brand-border/40 space-y-3">
+              <div className="pt-2 space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-brand-text">
                   <Globe className="h-4 w-4" />
                   <span>Commuter Language Preference</span>

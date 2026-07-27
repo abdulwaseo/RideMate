@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { useAuth } from '../hooks/useAuth';
 import { useRide } from './RideContext';
 import { getAuthToken } from '../utils/token';
+import { API_V1_URL } from '../config/api';
 
 // Forwarding interfaces
 export type Ride = import('./RideContext').Ride;
@@ -83,7 +84,7 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsLoading(true);
     try {
       const token = getToken();
-      const res = await fetch('http://localhost:8000/api/v1/rides?page=1&size=50', {
+      const res = await fetch(`${API_V1_URL}/rides?page=1&size=50`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -173,7 +174,7 @@ export const PassengerProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       params.append('page', '1');
       params.append('size', '50');
 
-      const res = await fetch(`http://localhost:8000/api/v1/rides?${params.toString()}`, {
+      const res = await fetch(`${API_V1_URL}/rides?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 

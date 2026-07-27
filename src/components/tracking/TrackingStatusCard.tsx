@@ -44,7 +44,7 @@ export const TrackingStatusCard: React.FC<TrackingStatusCardProps> = ({
   const label = status ? STATUS_LABELS[status] : 'Not Tracking';
 
   return (
-    <div className={`bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4 ${className}`}>
+    <div className={`bg-brand-surface border border-slate-200 rounded-2xl p-4 space-y-4 ${className}`}>
       {/* Status pill + live indicator */}
       <div className="flex items-center justify-between">
         <span className={`text-xs font-bold border rounded-full px-3 py-1 ${colorClass}`}>

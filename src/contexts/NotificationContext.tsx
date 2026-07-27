@@ -84,9 +84,11 @@ interface NotificationContextType {
   registerPushToken: (subscriptionData: string) => Promise<void>;
 }
 
+import { API_BASE_URL } from '../config/api';
+
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = API_BASE_URL;
 
 export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();

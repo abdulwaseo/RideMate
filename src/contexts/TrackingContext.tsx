@@ -30,11 +30,13 @@ interface TrackingContextType {
   clearSession: () => void;
 }
 
+import { API_BASE_URL } from '../config/api';
+
 const TrackingContext = createContext<TrackingContextType | undefined>(undefined);
 
 // ─── Helper: REST API call via localStorage token ─────────────────────────────
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = API_BASE_URL;
 
 async function apiCall<T>(method: string, path: string, body?: unknown): Promise<T | null> {
   const token = getAuthToken() ?? '';

@@ -12,17 +12,19 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ password = '' }) =
     { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
     { label: 'One lowercase letter', met: /[a-z]/.test(password) },
     { label: 'One number', met: /[0-9]/.test(password) },
+    { label: 'One special character (!@#$%^&*)', met: /[^A-Za-z0-9]/.test(password) },
   ];
 
   const score = criteria.filter((c) => c.met).length;
 
-  const strengthLabels = ['Empty', 'Weak', 'Weak', 'Fair', 'Strong'];
+  const strengthLabels = ['Empty', 'Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
   const strengthColors = [
     'bg-white/[0.05]',
     'bg-red-500',
     'bg-red-500',
     'bg-amber-500',
     'bg-brand-primary',
+    'bg-emerald-400',
   ];
   
   const labelColor = [
@@ -31,6 +33,7 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ password = '' }) =
     'text-red-400',
     'text-amber-400',
     'text-brand-primaryLight',
+    'text-emerald-400',
   ];
 
   return (
@@ -44,8 +47,8 @@ export const StrengthMeter: React.FC<StrengthMeterProps> = ({ password = '' }) =
           </span>
         </div>
         
-        <div className="grid grid-cols-4 gap-1.5 h-1.5">
-          {[1, 2, 3, 4].map((index) => (
+        <div className="grid grid-cols-5 gap-1.5 h-1.5">
+          {[1, 2, 3, 4, 5].map((index) => (
             <div
               key={index}
               className={cn(

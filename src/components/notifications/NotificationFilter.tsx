@@ -33,7 +33,7 @@ export const NotificationFilter: React.FC<NotificationFilterProps> = ({
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${
               isSelected
                 ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                : 'bg-brand-surface border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300'
             }`}
           >
             {cat}

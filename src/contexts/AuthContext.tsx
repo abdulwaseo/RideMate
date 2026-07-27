@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { setAuthToken, clearAuthToken } from '../utils/token';
+import { API_V1_URL } from '../config/api';
 
 export type UserRole = 'driver' | 'passenger';
 
@@ -71,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (mobileNumber: string, password: string, portalRole?: UserRole): Promise<LoginResult> => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/login', {
+      const res = await fetch(`${API_V1_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -139,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let driverProfileFailed = false;
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/auth/register', {
+      const res = await fetch(`${API_V1_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -169,7 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // If registering as a driver with CNIC & License, provision DriverProfile
           if (userData.role === 'driver' && userData.cnicNumber && userData.licenseNumber) {
             try {
-              const driverRes = await fetch('http://localhost:8000/api/v1/drivers/profile', {
+              const driverRes = await fetch(`${API_V1_URL}/drivers/profile`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -206,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     });
                     driverProfileFailed = true;
                   } else {
-                    const vehRes = await fetch('http://localhost:8000/api/v1/vehicles', {
+                    const vehRes = await fetch(`${API_V1_URL}/vehicles`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

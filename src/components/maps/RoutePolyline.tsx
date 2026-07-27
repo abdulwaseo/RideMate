@@ -6,6 +6,7 @@ export const RoutePolyline: React.FC = () => {
   const polylineRef = useRef<google.maps.Polyline | null>(null);
 
   useEffect(() => {
+    // Guard: ensure both mapInstance and currentRoute are ready
     if (!mapInstance || !currentRoute) {
       if (polylineRef.current) {
         polylineRef.current.setMap(null);
@@ -26,27 +27,36 @@ export const RoutePolyline: React.FC = () => {
         pathCoords = window.google.maps.geometry.encoding.decodePath(currentRoute.polyline);
       } else {
         // Fallback straight line segment
-        pathCoords = [
-          new window.google.maps.LatLng(currentRoute.pickup_location.latitude, currentRoute.pickup_location.longitude),
-          new window.google.maps.LatLng(currentRoute.destination_location.latitude, currentRoute.destination_location.longitude),
-        ];
+        const pickupLat = Number(currentRoute.pickup_location.latitude);
+        const pickupLng = Number(currentRoute.pickup_location.longitude);
+        const destLat = Number(currentRoute.destination_location.latitude);
+        const destLng = Number(currentRoute.destination_location.longitude);
+
+        if (!isNaN(pickupLat) && !isNaN(pickupLng) && !isNaN(destLat) && !isNaN(destLng)) {
+          pathCoords = [
+            new window.google.maps.LatLng(pickupLat, pickupLng),
+            new window.google.maps.LatLng(destLat, destLng),
+          ];
+        }
       }
 
-      const polyline = new window.google.maps.Polyline({
-        path: pathCoords,
-        geodesic: true,
-        strokeColor: '#6366f1', // Indigo primary
-        strokeOpacity: 0.85,
-        strokeWeight: 5,
-        map: mapInstance,
-      });
+      if (pathCoords.length > 0) {
+        const polyline = new window.google.maps.Polyline({
+          path: pathCoords,
+          geodesic: true,
+          strokeColor: '#6366f1', // Indigo primary
+          strokeOpacity: 0.85,
+          strokeWeight: 5,
+          map: mapInstance,
+        });
 
-      polylineRef.current = polyline;
+        polylineRef.current = polyline;
 
-      // Fit map to route bounds
-      const bounds = new window.google.maps.LatLngBounds();
-      pathCoords.forEach((coord) => bounds.extend(coord));
-      mapInstance.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+        // Fit map to route bounds
+        const bounds = new window.google.maps.LatLngBounds();
+        pathCoords.forEach((coord) => bounds.extend(coord));
+        mapInstance.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+      }
     }
 
     return () => {

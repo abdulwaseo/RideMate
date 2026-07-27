@@ -84,7 +84,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const isExpired = !room.is_active || (room.expires_at && new Date(room.expires_at) < new Date());
 
   return (
-    <div className="flex flex-col h-full bg-slate-950">
+    <div className="flex flex-col h-full bg-brand-surface">
       {/* Header */}
       <ChatHeader room={room} />
 
@@ -94,7 +94,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       {/* Message Area */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent"
+        className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent"
       >
         {messages.length === 0 ? (
           <ChatEmptyState variant="no-messages" />
@@ -108,7 +108,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <React.Fragment key={msg.id}>
                   {showDateSep && (
                     <div className="flex items-center justify-center my-4">
-                      <span className="text-[11px] font-semibold text-slate-500 bg-slate-900/60 px-3 py-1 rounded-full border border-slate-800">
+                      <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
                         {formatDateSeparator(msg.created_at)}
                       </span>
                     </div>
@@ -137,8 +137,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
       {/* Composer — disabled when room expired */}
       {isExpired ? (
-        <div className="px-4 py-3 bg-slate-900 border-t border-slate-800 text-center">
-          <p className="text-sm text-slate-500">This chat room has expired. Messaging is closed.</p>
+        <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 text-center">
+          <p className="text-sm text-slate-600">This chat room has expired. Messaging is closed.</p>
         </div>
       ) : (
         <MessageComposer

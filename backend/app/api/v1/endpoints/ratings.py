@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.rating import (
+    BatchRatingCreate,
     RatingCreate,
     RatingResponse,
     RatingUpdate,
@@ -48,6 +49,45 @@ def submit_rating(
     return SuccessResponse(
         message="Rating submitted successfully.",
         data=rating_resp,
+    )
+
+
+@router.post(
+    "/batch",
+    response_model=SuccessResponse[List[RatingResponse]],
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit Batch Ratings & Reviews",
+    description="Submits multiple ratings at once for ride participants.",
+)
+def submit_batch_ratings(
+    payload: BatchRatingCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    svc = RatingService(db)
+    rating_resps = svc.batch_create_ratings(current_user, payload)
+
+    return SuccessResponse(
+        message="Batch ratings submitted successfully.",
+        data=rating_resps,
+    )
+
+
+@router.get(
+    "/summary",
+    response_model=SuccessResponse[UserRatingSummary],
+    status_code=status.HTTP_200_OK,
+    summary="Get My Rating Summary",
+)
+def get_my_rating_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    svc = RatingService(db)
+    summary = svc.get_public_user_ratings(current_user.id)
+    return SuccessResponse(
+        message="Rating summary retrieved successfully.",
+        data=summary,
     )
 
 

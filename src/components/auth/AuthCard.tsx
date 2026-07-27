@@ -12,13 +12,10 @@ export const AuthCard: React.FC<AuthCardProps> = ({ children, className }) => {
     <Card
       hoverEffect={false}
       className={cn(
-        "border border-brand-border bg-brand-card shadow-glass p-6 sm:p-8 rounded-2xl relative overflow-hidden backdrop-blur-glass",
+        "border border-slate-200/80 bg-white/95 shadow-[0_20px_50px_-12px_rgba(15,23,42,0.09)] p-8 sm:p-10 rounded-3xl relative overflow-hidden backdrop-blur-xl transition-all",
         className
       )}
     >
-      {/* Decorative internal card ambient lines */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-primary/20 to-transparent" />
-      
       {children}
     </Card>
   );

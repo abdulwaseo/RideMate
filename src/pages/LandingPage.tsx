@@ -221,7 +221,7 @@ export const LandingPage: React.FC = () => {
         <Container className="max-w-4xl">
           <Card 
             hoverEffect={false} 
-            className="p-8 md:p-14 text-center border border-brand-primary/20 bg-gradient-to-tr from-brand-surface to-[#0e172a]/80 shadow-glass-glow relative overflow-hidden"
+            className="p-8 md:p-14 text-center border border-brand-primary/20 bg-gradient-to-tr from-brand-surface via-white to-emerald-50/50 shadow-glass-glow relative overflow-hidden"
           >
             {/* Background design accents */}
             <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-brand-primary/10 blur-[80px]" />

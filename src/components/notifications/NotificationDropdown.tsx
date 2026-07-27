@@ -43,10 +43,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         initial={{ opacity: 0, y: 10, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 10, scale: 0.98 }}
-        className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden"
+        className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-brand-surface border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-emerald-400" />
             <h3 className="text-sm font-bold text-white">Notifications</h3>
@@ -92,7 +92,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-slate-800 text-center bg-slate-900/50">
+        <div className="p-3 border-t border-slate-200 text-center bg-slate-50">
           <button
             onClick={() => {
               navigate('/dashboard/passenger/notifications');

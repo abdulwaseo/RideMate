@@ -21,6 +21,8 @@ import { useDriver } from '../../hooks/useDriver';
 import { useSocketEvent } from '../../hooks/useSocketEvent';
 import { getAuthToken } from '../../utils/token';
 
+import { API_V1_URL } from '../../config/api';
+
 export const DriverDashboard: React.FC = () => {
   const { user } = useAuth();
   const { activeRide, requests, rideHistory, acceptRequest, rejectRequest } = useDriver();
@@ -36,7 +38,7 @@ export const DriverDashboard: React.FC = () => {
   React.useEffect(() => {
     const token = getAuthToken();
     if (!token) return;
-    fetch('http://localhost:8000/api/v1/ratings/summary', {
+    fetch(`${API_V1_URL}/ratings/summary`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())

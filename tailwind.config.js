@@ -9,21 +9,21 @@ export default {
     extend: {
       colors: {
         brand: {
-          bg: '#070a13',        // Very Dark Slate background
-          surface: '#0b0f19',   // Slightly lighter slate surface
-          card: 'rgba(13, 20, 35, 0.6)', // Glassmorphic card surface
-          cardHover: 'rgba(20, 30, 50, 0.75)',
-          border: 'rgba(255, 255, 255, 0.06)',
-          borderHover: 'rgba(255, 255, 255, 0.12)',
-          primary: '#10b981',   // Emerald Green
+          bg: '#f8fafc',           // Light background (Slate 50)
+          surface: '#ffffff',      // Card/surface background
+          card: '#ffffff',         // Solid white card surface
+          cardHover: '#f1f5f9',    // Light slate card hover
+          border: '#e2e8f0',       // Light gray border
+          borderHover: '#cbd5e1',  // Darker light border on hover
+          primary: '#10b981',      // Emerald Green
           primaryDark: '#059669',
           primaryLight: '#34d399',
-          accent: '#0ea5e9',    // Sky Blue
+          accent: '#0ea5e9',       // Sky Blue
           accentDark: '#0284c7',
           accentLight: '#38bdf8',
-          muted: '#828e9e',
-          text: '#f8fafc',
-          textMuted: '#94a3b8',
+          muted: '#64748b',        // Adjusted for light bg contrast
+          text: '#0f172a',         // Dark text for light background
+          textMuted: '#475569',    // Muted dark text for light background
         }
       },
       fontFamily: {
@@ -33,7 +33,7 @@ export default {
         glass: '16px',
       },
       boxShadow: {
-        glass: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        glass: '0 4px 24px 0 rgba(15, 23, 42, 0.08)',
         'glass-glow': '0 8px 32px 0 rgba(16, 185, 129, 0.1)',
         glow: '0 0 20px rgba(16, 185, 129, 0.15)',
         'glow-accent': '0 0 20px rgba(14, 165, 233, 0.15)',

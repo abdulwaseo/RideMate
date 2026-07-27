@@ -1,4 +1,5 @@
 import type { GPSLocation, DriverLocationRecord } from '../types/tracking';
+import { API_V1_URL } from '../config/api';
 
 export interface LocationSyncConfig {
   baseUrl?: string;
@@ -11,7 +12,7 @@ export class LocationSyncService {
   private lastSyncTime: number | null = null;
 
   constructor(config?: LocationSyncConfig) {
-    this.baseUrl = config?.baseUrl || 'http://localhost:8000/api/v1';
+    this.baseUrl = config?.baseUrl || API_V1_URL;
   }
 
   setTokenGetter(getter: () => string | null): void {

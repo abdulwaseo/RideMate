@@ -8,7 +8,7 @@ export const TrackingStatus: React.FC = () => {
   const speedKmh = driverLocation?.speed ? Math.round(driverLocation.speed * 3.6) : 0;
 
   return (
-    <div className="bg-gray-900/90 border border-gray-800 rounded-2xl p-4 shadow-2xl backdrop-blur-xl space-y-3 text-xs text-gray-200">
+    <div className="bg-white/90 border border-slate-200 rounded-2xl p-4 shadow-2xl backdrop-blur-xl space-y-3 text-xs text-slate-800">
       <div className="flex items-center justify-between">
         <GPSIndicator />
 
@@ -22,8 +22,8 @@ export const TrackingStatus: React.FC = () => {
           }}
           className={`px-3 py-1.5 rounded-xl border font-semibold text-[11px] transition-all ${
             autoFollow
-              ? 'bg-indigo-600/30 border-indigo-500/50 text-indigo-300'
-              : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200'
+              ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-600'
+              : 'bg-slate-100 border-slate-200 text-slate-600 hover:text-slate-900'
           }`}
         >
           {autoFollow ? '🎯 Auto-Follow ON' : '🎯 Auto-Follow OFF'}
@@ -31,18 +31,18 @@ export const TrackingStatus: React.FC = () => {
       </div>
 
       {trackingStatus === 'tracking' && driverLocation && (
-        <div className="grid grid-cols-3 gap-2 bg-gray-950/60 border border-gray-800 rounded-xl p-2.5 text-center">
+        <div className="grid grid-cols-3 gap-2 bg-slate-50/80 border border-slate-200 rounded-xl p-2.5 text-center">
           <div>
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Speed</span>
-            <span className="text-sm font-extrabold text-indigo-400">{speedKmh} km/h</span>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Speed</span>
+            <span className="text-sm font-extrabold text-indigo-600">{speedKmh} km/h</span>
           </div>
-          <div className="border-x border-gray-800">
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Heading</span>
-            <span className="text-sm font-extrabold text-emerald-400">{Math.round(driverLocation.heading || 0)}°</span>
+          <div className="border-x border-slate-200">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Heading</span>
+            <span className="text-sm font-extrabold text-emerald-600">{Math.round(driverLocation.heading || 0)}°</span>
           </div>
           <div>
-            <span className="text-[10px] text-gray-500 uppercase tracking-wider block">Accuracy</span>
-            <span className="text-sm font-extrabold text-amber-400">±{Math.round(driverLocation.accuracy || 0)}m</span>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Accuracy</span>
+            <span className="text-sm font-extrabold text-amber-600">±{Math.round(driverLocation.accuracy || 0)}m</span>
           </div>
         </div>
       )}

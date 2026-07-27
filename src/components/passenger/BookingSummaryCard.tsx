@@ -1,16 +1,18 @@
 import React from 'react';
-import { MapPin, Navigation, Calendar, Clock, XCircle, Eye } from 'lucide-react';
+import { MapPin, Navigation, Calendar, Clock, XCircle, Eye, Star } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { RideTimeline } from '../ui/RideTimeline';
-import type { BookingRequest } from '../../contexts/PassengerContext';
+import type { BookingRequest } from '../../contexts/RideContext';
 import { cn } from '../../utils/cn';
 
 interface BookingSummaryCardProps {
   request: BookingRequest;
   onCancelRequest?: (id: string) => void;
   onViewRideDetails?: (rideId: string) => void;
+  onRateDriver?: (request: BookingRequest) => void;
+  isAlreadyRated?: boolean;
   className?: string;
 }
 
@@ -18,6 +20,8 @@ export const BookingSummaryCard: React.FC<BookingSummaryCardProps> = ({
   request,
   onCancelRequest,
   onViewRideDetails,
+  onRateDriver,
+  isAlreadyRated,
   className,
 }) => {
   const { ride, status, requestDate } = request;
@@ -27,6 +31,7 @@ export const BookingSummaryCard: React.FC<BookingSummaryCardProps> = ({
     Accepted: 'success' as const,
     Rejected: 'warning' as const,
     Cancelled: 'muted' as const,
+    Completed: 'success' as const,
   };
 
   return (
@@ -109,7 +114,26 @@ export const BookingSummaryCard: React.FC<BookingSummaryCardProps> = ({
           </Button>
         )}
 
-        {onCancelRequest && (status === 'Pending' || status === 'Accepted') && (
+        {(ride.status === 'Completed' || status === 'Completed') && (
+          isAlreadyRated ? (
+            <Badge variant="success" className="text-xs font-bold gap-1 px-3 py-1.5 flex items-center border border-amber-400/20 bg-amber-400/10 text-amber-400">
+              <Star className="h-3.5 w-3.5 fill-current" />
+              <span>Rated ✓</span>
+            </Badge>
+          ) : onRateDriver ? (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => onRateDriver(request)}
+              leftIcon={<Star className="h-4 w-4 fill-amber-400 text-amber-400" />}
+              className="font-bold"
+            >
+              Rate Driver
+            </Button>
+          ) : null
+        )}
+
+        {onCancelRequest && (status === 'Pending' || (status === 'Accepted' && ride.status !== 'Completed')) && (
           <Button
             variant="danger"
             size="sm"

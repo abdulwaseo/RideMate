@@ -3,6 +3,7 @@ import type { ChatMessage, ChatRoom, TypingUser } from '../types/chat';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../hooks/useAuth';
 import { getAuthToken } from '../utils/token';
+import { API_V1_URL } from '../config/api';
 
 interface ChatContextType {
   rooms: ChatRoom[];
@@ -43,7 +44,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       const token = getAuthToken();
-      const res = await fetch('http://localhost:8000/api/v1/chat/rooms', {
+      const res = await fetch(`${API_V1_URL}/chat/rooms`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -88,7 +89,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchMessages = async () => {
       try {
         const token = getAuthToken();
-        const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages?size=100`, {
+        const res = await fetch(`${API_V1_URL}/chat/rooms/${activeRoomId}/messages?size=100`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (res.ok) {
@@ -333,7 +334,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 3. Fallback to REST API if WS not connected
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages`, {
+      const res = await fetch(`${API_V1_URL}/chat/rooms/${activeRoomId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -395,7 +396,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
+      const res = await fetch(`${API_V1_URL}/chat/rooms/${activeRoomId}/messages/${messageId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -432,7 +433,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const token = getAuthToken();
-      const res = await fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/messages/${messageId}`, {
+      const res = await fetch(`${API_V1_URL}/chat/rooms/${activeRoomId}/messages/${messageId}`, {
         method: 'DELETE',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -463,7 +464,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // REST fallback
     const token = getAuthToken();
-    fetch(`http://localhost:8000/api/v1/chat/rooms/${activeRoomId}/read`, {
+    fetch(`${API_V1_URL}/chat/rooms/${activeRoomId}/read`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
