@@ -23,6 +23,9 @@ def validate_cnic(v: str) -> str:
     return cleaned
 
 
+from app.schemas.auth import TokenPair
+
+
 # ---------- Driver Profile Schemas ----------
 
 class DriverProfileCreate(BaseModel):
@@ -79,6 +82,7 @@ class DriverProfileResponse(BaseModel):
     verification_status: VerificationStatus
     verification_notes: Optional[str] = None
     vehicles: List[VehicleResponse] = []
+    tokens: Optional[TokenPair] = None
     created_at: datetime
     updated_at: datetime
 

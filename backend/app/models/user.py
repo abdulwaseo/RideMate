@@ -14,7 +14,7 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     name = Column(String(100), nullable=False)
     mobile_number = Column(String(20), unique=True, index=True, nullable=False)
     office_name = Column(String(100), nullable=True)
-    cnic_number = Column(String(20), nullable=True)
+    cnic_number = Column(String(20), unique=True, nullable=True)
     date_of_birth = Column(Date, nullable=True)
     
     role = Column(

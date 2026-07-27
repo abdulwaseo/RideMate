@@ -62,7 +62,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ onSearch, isLoadin
             placeholder="Search pickup area (e.g., Gulshan, Nazimabad, Clifton)..."
             type="pickup"
             value={pickupArea}
-            onSelectLocation={(loc) => setPickupArea(loc.area || loc.name || loc.formatted_address)}
+            onSelectLocation={(loc) => setPickupArea(loc.name || loc.formatted_address)}
             onClear={() => setPickupArea('')}
           />
 
@@ -71,7 +71,7 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({ onSearch, isLoadin
             placeholder="Search destination (e.g., Dilkusha Towers, Karachi)..."
             type="destination"
             value={destination}
-            onSelectLocation={(loc) => setDestination(loc.area || loc.name || loc.formatted_address)}
+            onSelectLocation={(loc) => setDestination(loc.name || loc.formatted_address)}
             onClear={() => setDestination('')}
           />
         </div>

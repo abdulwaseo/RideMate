@@ -182,6 +182,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               });
 
               if (driverRes.ok) {
+                const driverJson = await driverRes.json();
+                const newTokens = driverJson.data?.tokens;
+
+                // Replace stale passenger token with newly re-issued driver-role token
+                let activeToken = token;
+                if (newTokens?.access_token) {
+                  activeToken = newTokens.access_token;
+                  setAuthToken(newTokens.access_token, newTokens.refresh_token);
+                }
+
                 // Provision Vehicle if registered with submitted manufacturer & color
                 if (userData.vehicleRegistrationNumber) {
                   if (
@@ -200,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
+                        'Authorization': `Bearer ${activeToken}`,
                       },
                       body: JSON.stringify({
                         vehicle_type: userData.vehicleType === 'Bike' ? 'Bike' : 'Car',

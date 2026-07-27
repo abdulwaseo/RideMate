@@ -41,6 +41,12 @@ class AuthService:
                 detail="Mobile number is already registered.",
             )
 
+        if payload.cnic_number and self.repo.cnic_exists(payload.cnic_number):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="CNIC number is already registered.",
+            )
+
         hashed_pw = get_password_hash(payload.password)
 
         user = self.repo.create_user(

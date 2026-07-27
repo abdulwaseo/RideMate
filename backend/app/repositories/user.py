@@ -80,6 +80,15 @@ class UserRepository:
             User.is_deleted == False,
         ).first() is not None
 
+    def cnic_exists(self, cnic_number: Optional[str]) -> bool:
+        if not cnic_number:
+            return False
+        cleaned = cnic_number.strip().replace(" ", "")
+        return self.db.query(User.id).filter(
+            User.cnic_number == cleaned,
+            User.is_deleted == False,
+        ).first() is not None
+
     # ---- PassengerProfile ----
 
     def create_passenger_profile(self, user_id: UUID) -> PassengerProfile:

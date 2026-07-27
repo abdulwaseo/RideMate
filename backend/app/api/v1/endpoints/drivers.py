@@ -1,9 +1,14 @@
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_current_driver
+from app.core.config import settings
+from app.core.security import create_access_token, create_refresh_token
 from app.db.session import get_db
 from app.models.user import User
+from app.repositories.user import UserRepository
+from app.schemas.auth import TokenPair
 from app.schemas.driver import (
     DriverProfileCreate,
     DriverProfileResponse,
@@ -24,7 +29,7 @@ router = APIRouter()
         "Upgrades an authenticated Passenger account into a Driver profile. "
         "Requires valid 13-digit Pakistani CNIC number and driving license registration. "
         "DriverProfile can be created only once per account. "
-        "Automatically elevates user's role to `DRIVER`."
+        "Automatically elevates user's role to `DRIVER` and re-issues authentication tokens."
     ),
     responses={
         201: {"description": "Driver profile created successfully"},
@@ -40,9 +45,32 @@ def create_driver_profile(
     svc = DriverService(db)
     profile = svc.create_driver_profile(current_user, payload)
 
+    # Re-issue tokens with elevated DRIVER role
+    db.refresh(current_user)
+    repo = UserRepository(db)
+
+    access_token = create_access_token(
+        subject=str(current_user.id),
+        role=current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role),
+    )
+    refresh_token = create_refresh_token(subject=str(current_user.id))
+
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    repo.create_refresh_token(
+        user_id=current_user.id,
+        token=refresh_token,
+        expires_at=expires_at,
+    )
+    db.commit()
+
+    resp_data = DriverProfileResponse.model_validate(profile)
+    resp_data.tokens = TokenPair(access_token=access_token, refresh_token=refresh_token)
+
     return SuccessResponse(
         message="Driver profile created successfully. Role upgraded to DRIVER.",
-        data=DriverProfileResponse.model_validate(profile),
+        data=resp_data,
     )
 
 

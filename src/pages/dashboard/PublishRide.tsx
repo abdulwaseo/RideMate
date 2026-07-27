@@ -43,6 +43,7 @@ const PublishRideFormInner: React.FC = () => {
   } = useMapContext();
 
   const now = new Date();
+  const getLocalDateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const defaultDeparture = `${String(now.getHours() < 23 ? now.getHours() + 1 : 9).padStart(2, '0')}:00`;
 
   const {
@@ -61,7 +62,7 @@ const PublishRideFormInner: React.FC = () => {
       pickupArea: '',
       destination: '',
       meetingPoint: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateStr(now),
       departureTime: defaultDeparture,
       availableSeats: 1,
       farePerPassenger: 0,
@@ -78,7 +79,7 @@ const PublishRideFormInner: React.FC = () => {
 
   const handlePickupSelect = (location: LocationData) => {
     setSelectedPickup(location);
-    setValue('pickupArea', location.area || location.name || location.formatted_address, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+    setValue('pickupArea', location.name || location.formatted_address, { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     if (selectedDestination) {
       calculateRoute(location, selectedDestination);
     }
@@ -93,6 +94,10 @@ const PublishRideFormInner: React.FC = () => {
   };
 
   const onSubmit = async (values: PublishRideFormValues) => {
+    if (!values.farePerPassenger || values.farePerPassenger <= 0) {
+      setErrorMsg('Fare per passenger must be greater than 0 PKR.');
+      return;
+    }
     setIsSubmitting(true);
     setErrorMsg(null);
     try {
@@ -130,7 +135,7 @@ const PublishRideFormInner: React.FC = () => {
           description="Offer empty vehicle seats to verified coworkers commuting to Dilkusha Towers."
         />
 
-        <Card hoverEffect={false} className="max-w-xl mx-auto border border-brand-accent/20 bg-[#0c1424] p-8 text-center space-y-6">
+        <Card hoverEffect={false} className="max-w-xl mx-auto border border-brand-accent/30 bg-sky-50/80 p-8 text-center space-y-6">
           <div className="mx-auto p-4 rounded-full bg-brand-accent/10 border border-brand-accent/20 text-brand-accent w-fit animate-pulse">
             <AlertTriangle className="h-8 w-8" />
           </div>

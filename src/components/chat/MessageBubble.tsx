@@ -18,12 +18,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onDelete,
 }) => {
   const { user } = useAuth();
-  const isSelf = Boolean(
-    (user?.id && message.sender_id === user.id) ||
-    (user?.mobileNumber && message.sender_id === user.mobileNumber) ||
-    (user?.name && message.sender_name === user.name) ||
-    message.sender_name?.includes('Self')
-  );
+  const isSelf = Boolean(user?.id && message.sender_id === user.id);
   const isSystem = message.message_type === 'SYSTEM' || message.message_type === 'RIDE_UPDATE';
 
   const [isEditing, setIsEditing] = useState(false);
@@ -70,7 +65,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       >
         {/* Reply Preview */}
         {message.reply_to && (
-          <div className="mb-2 p-2 bg-black/20 rounded-lg text-xs border-l-2 border-emerald-400">
+          <div className="mb-2 p-2 bg-black/10 rounded-lg text-xs border-l-2 border-emerald-400">
             <p className="font-semibold text-emerald-300">{message.reply_to.sender_name || 'User'}</p>
             <p className="line-clamp-1 opacity-90">{message.reply_to.content}</p>
           </div>
