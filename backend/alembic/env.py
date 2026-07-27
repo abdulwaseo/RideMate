@@ -23,7 +23,10 @@ if alembic_config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Override the sqlalchemy.url from our env settings
-alembic_config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+alembic_config.set_main_option("sqlalchemy.url", db_url)
 
 
 def run_migrations_offline() -> None:

@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Database URLs
     DATABASE_URL: str  # Required via environment / .env — fails startup if not set
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def sanitize_database_url(cls, v: str) -> str:
+        if isinstance(v, str) and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+
     # CORS origins resolver
     CORS_ORIGINS: Union[str, List[str]] = [
         "http://localhost:5173",
