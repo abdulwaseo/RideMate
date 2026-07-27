@@ -19,11 +19,49 @@ import { StatCard } from '../../components/ui/StatCard';
 import { QuickActionCard } from '../../components/driver/QuickActionCard';
 import { useAuth } from '../../hooks/useAuth';
 import { usePassenger } from '../../hooks/usePassenger';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
+import { getAuthToken } from '../../utils/token';
 
 export const PassengerDashboard: React.FC = () => {
   const { user } = useAuth();
   const { bookingRequests, rideHistory } = usePassenger();
   const navigate = useNavigate();
+
+  // Dynamic Rating State for Passenger
+  const [passengerRating, setPassengerRating] = React.useState<{ average: number; count: number }>({
+    average: 4.9,
+    count: 0,
+  });
+
+  // Fetch initial passenger rating summary
+  React.useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    fetch('http://localhost:8000/api/v1/ratings/summary', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data) {
+          setPassengerRating({
+            average: json.data.average_rating || 4.9,
+            count: json.data.total_ratings || 0,
+          });
+        }
+      })
+      .catch((err) => console.warn('[PassengerDashboard] Rating summary fetch error:', err));
+  }, []);
+
+  // Listen to real-time RATING_UPDATED WebSocket events
+  useSocketEvent('rating_updated', (evt) => {
+    const payload = evt.payload || {};
+    if (payload.average_rating !== undefined) {
+      setPassengerRating({
+        average: payload.average_rating,
+        count: payload.total_ratings || 0,
+      });
+    }
+  });
 
   // Find dynamic upcoming accepted ride
   const upcomingRide = bookingRequests.find((req) => req.status === 'Accepted');
@@ -73,7 +111,7 @@ export const PassengerDashboard: React.FC = () => {
               <h3 className="text-xl font-bold text-brand-text">{user?.name || 'Abdul Waseo'}</h3>
               <div className="flex items-center gap-0.5 text-xs text-amber-400 font-bold bg-amber-400/5 px-2 py-0.5 rounded-lg border border-amber-400/10">
                 <Star className="h-3 w-3 fill-current" />
-                <span>4.9</span>
+                <span>{passengerRating.average > 0 ? passengerRating.average.toFixed(1) : '4.9'}</span>
               </div>
               <Badge variant="accent" className="text-[9px]">Commuter</Badge>
             </div>
@@ -104,7 +142,13 @@ export const PassengerDashboard: React.FC = () => {
         <StatCard title="Total Commutes" value={completedTripsCount} icon={Milestone} description="Total carpools matched" />
         <StatCard title="Upcoming Trips" value={upcomingRide ? 1 : 0} icon={Compass} description="Confirmed schedules today" />
         <StatCard title="Completed Rides" value={completedTripsCount} icon={CheckCircle} description="Trips checked-in" />
-        <StatCard title="Driver Ratings Given" value={5} prefix="5." suffix=" / 5" icon={Star} description="Avg driver score given" />
+        <StatCard 
+          title="Driver Ratings Given" 
+          value={passengerRating.average > 0 ? Number(passengerRating.average.toFixed(1)) : 4.9} 
+          suffix=" / 5" 
+          icon={Star} 
+          description={passengerRating.count > 0 ? `${passengerRating.count} ratings logged` : "Avg driver score given"} 
+        />
       </div>
 
       {/* Grid 3: Upcoming ride & Quick Actions */}
@@ -137,7 +181,7 @@ export const PassengerDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 py-3.5 border-y border-brand-border/40 text-xs text-brand-textMuted">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 py-3.5 border-y border-brand-border/40 text-xs text-brand-textMuted">
                   <div>
                     <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wide block mb-0.5">Time</span>
                     <strong className="text-brand-text font-semibold">{upcomingRide.ride.departureTime}</strong>

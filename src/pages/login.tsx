@@ -106,33 +106,33 @@ export const LoginPage: React.FC = () => {
       <div className="space-y-5">
         
         {/* Floating Portal Selection Tabs Segment */}
-        <div className="p-1 sm:p-1.5 rounded-2xl bg-white/90 border border-slate-200/90 flex gap-1.5 select-none shadow-md shadow-slate-200/50 mb-6 backdrop-blur-md">
+        <div className="p-1.5 rounded-2xl bg-white/90 border border-slate-200/90 flex gap-2 select-none shadow-md shadow-slate-200/50 mb-6 backdrop-blur-md">
           <button
             type="button"
             onClick={() => handleRoleChange('passenger')}
             className={cn(
-              "flex-1 py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]",
+              "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px]",
               role === 'passenger'
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border border-emerald-600"
                 : "bg-slate-100/90 hover:bg-slate-200/70 text-slate-600 border border-slate-200/80"
             )}
           >
-            <User className={cn("w-3.5 h-3.5 shrink-0", role === 'passenger' ? "text-white" : "text-slate-400")} />
-            <span className="truncate">Passenger Portal</span>
+            <User className={cn("w-4 h-4 shrink-0", role === 'passenger' ? "text-white" : "text-slate-400")} />
+            <span>Passenger<span className="hidden sm:inline"> Portal</span></span>
           </button>
 
           <button
             type="button"
             onClick={() => handleRoleChange('driver')}
             className={cn(
-              "flex-1 py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]",
+              "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer min-h-[44px]",
               role === 'driver'
                 ? "bg-sky-600 text-white shadow-md shadow-sky-600/25 border border-sky-600"
                 : "bg-slate-100/90 hover:bg-slate-200/70 text-slate-600 border border-slate-200/80"
             )}
           >
-            <Car className={cn("w-3.5 h-3.5 shrink-0", role === 'driver' ? "text-white" : "text-slate-400")} />
-            <span className="truncate">Driver Portal</span>
+            <Car className={cn("w-4 h-4 shrink-0", role === 'driver' ? "text-white" : "text-slate-400")} />
+            <span>Driver<span className="hidden sm:inline"> Portal</span></span>
           </button>
         </div>
 

@@ -18,11 +18,49 @@ import { QuickActionCard } from '../../components/driver/QuickActionCard';
 import { RequestCard } from '../../components/driver/RequestCard';
 import { useAuth } from '../../hooks/useAuth';
 import { useDriver } from '../../hooks/useDriver';
+import { useSocketEvent } from '../../hooks/useSocketEvent';
+import { getAuthToken } from '../../utils/token';
 
 export const DriverDashboard: React.FC = () => {
   const { user } = useAuth();
   const { activeRide, requests, rideHistory, acceptRequest, rejectRequest } = useDriver();
   const navigate = useNavigate();
+
+  // Dynamic Rating State
+  const [driverRating, setDriverRating] = React.useState<{ average: number; count: number }>({
+    average: 5.0,
+    count: 0,
+  });
+
+  // Fetch initial rating summary from backend
+  React.useEffect(() => {
+    const token = getAuthToken();
+    if (!token) return;
+    fetch('http://localhost:8000/api/v1/ratings/summary', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.data) {
+          setDriverRating({
+            average: json.data.average_rating || 5.0,
+            count: json.data.total_ratings || 0,
+          });
+        }
+      })
+      .catch((err) => console.warn('[DriverDashboard] Rating summary fetch error:', err));
+  }, []);
+
+  // Listen to real-time RATING_UPDATED WebSocket events
+  useSocketEvent('rating_updated', (evt) => {
+    const payload = evt.payload || {};
+    if (payload.average_rating !== undefined) {
+      setDriverRating({
+        average: payload.average_rating,
+        count: payload.total_ratings || 0,
+      });
+    }
+  });
 
   // Filter first 2 pending requests to show in dashboard preview
   const pendingRequests = requests.filter((r) => r.status === 'Pending').slice(0, 2);
@@ -111,7 +149,13 @@ export const DriverDashboard: React.FC = () => {
         <StatCard title="Trips Completed" value={totalCompletedTrips} icon={CheckCircle} description="Total corporate drives" />
         <StatCard title="Seats Remaining" value={activeRide ? activeRide.availableSeats : 0} icon={Users} description="Seats open to match" />
         <StatCard title="Acceptance Rate" value={100} suffix="%" icon={CheckCircle} description="Passenger match rate" />
-        <StatCard title="Rating Average" value={5} prefix="5." suffix=" / 5" icon={Star} description="Commuter feedback score" />
+        <StatCard 
+          title="Rating Average" 
+          value={driverRating.average > 0 ? Number(driverRating.average.toFixed(1)) : 5.0} 
+          suffix=" / 5" 
+          icon={Star} 
+          description={driverRating.count > 0 ? `${driverRating.count} review${driverRating.count > 1 ? 's' : ''} received` : "Commuter feedback score"} 
+        />
       </div>
 
       {/* Grid 3: Active Ride & Quick Actions */}
@@ -141,7 +185,7 @@ export const DriverDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 py-3.5 border-y border-brand-border/40 text-xs text-brand-textMuted">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 py-3.5 border-y border-brand-border/40 text-xs text-brand-textMuted">
                   <div>
                     <span className="text-[9px] uppercase font-bold text-brand-muted tracking-wide block mb-0.5">Departure Time</span>
                     <strong className="text-brand-text font-semibold">{activeRide.departureTime}</strong>
