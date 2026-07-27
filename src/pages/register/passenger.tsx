@@ -65,7 +65,7 @@ export const PassengerRegisterPage: React.FC = () => {
       } else {
         setErrorMsg(res.errorMsg || 'Registration failed. Please check details and try again.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Registration failed. Please check details and try again.');
     } finally {
       setIsSubmitting(false);
@@ -229,7 +229,7 @@ export const PassengerRegisterPage: React.FC = () => {
             <Button
               type="submit"
               variant="primary"
-              className="w-full mt-2"
+              className="w-full mt-2 min-h-[48px] font-bold"
               disabled={!isValid || isSubmitting}
               isLoading={isSubmitting}
             >

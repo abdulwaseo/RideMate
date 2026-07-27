@@ -13,13 +13,10 @@ export const DEFAULT_MAP_ZOOM = 13;
 class GoogleMapsService {
   private loadPromise: Promise<typeof google.maps> | null = null;
   private googleMaps: typeof google.maps | null = null;
-  private autocompleteService: google.maps.places.AutocompleteService | null = null;
-  private placesService: google.maps.places.PlacesService | null = null;
-  private geocoder: google.maps.Geocoder | null = null;
 
-  // In-Memory Route Cache
+  // In-Memory Route Cache & LocationIQ Prediction Details Cache
   private routeCache: Map<string, RouteData> = new Map();
-  private isQuotaExceeded: boolean = false;
+  private predictionDetailsCache: Map<string, LocationData> = new Map();
 
   /**
    * Loads Google Maps JS API script using environment key VITE_GOOGLE_MAPS_API_KEY.
@@ -94,41 +91,7 @@ class GoogleMapsService {
   ): Promise<google.maps.Map> {
     const maps = await this.loadGoogleMaps();
 
-    const darkMapStyle: google.maps.MapTypeStyle[] = [
-      { elementType: 'geometry', stylers: [{ color: '#1f2937' }] },
-      { elementType: 'labels.text.stroke', stylers: [{ color: '#111827' }] },
-      { elementType: 'labels.text.fill', stylers: [{ color: '#9ca3af' }] },
-      {
-        featureType: 'administrative.locality',
-        elementType: 'labels.text.fill',
-        stylers: [{ color: '#6366f1' }],
-      },
-      {
-        featureType: 'poi',
-        elementType: 'labels.text.fill',
-        stylers: [{ color: '#818cf8' }],
-      },
-      {
-        featureType: 'road',
-        elementType: 'geometry',
-        stylers: [{ color: '#374151' }],
-      },
-      {
-        featureType: 'road',
-        elementType: 'geometry.stroke',
-        stylers: [{ color: '#1f2937' }],
-      },
-      {
-        featureType: 'road',
-        elementType: 'labels.text.fill',
-        stylers: [{ color: '#9ca3af' }],
-      },
-      {
-        featureType: 'water',
-        elementType: 'geometry',
-        stylers: [{ color: '#0f172a' }],
-      },
-    ];
+    const lightMapStyle: google.maps.MapTypeStyle[] = [];
 
     const mapId = import.meta.env.VITE_GOOGLE_MAP_ID || 'DEMO_MAP_ID';
 
@@ -136,7 +99,7 @@ class GoogleMapsService {
       center: DEFAULT_MAP_CENTER,
       zoom: DEFAULT_MAP_ZOOM,
       mapId: mapId,
-      styles: darkMapStyle,
+      styles: lightMapStyle,
       disableDefaultUI: false,
       zoomControl: true,
       mapTypeControl: false,
@@ -144,14 +107,7 @@ class GoogleMapsService {
       fullscreenControl: true,
     };
 
-    const mapInstance = new maps.Map(container, { ...defaultOptions, ...options });
-
-    const dummyNode = document.createElement('div');
-    this.placesService = new maps.places.PlacesService(dummyNode);
-    this.autocompleteService = new maps.places.AutocompleteService();
-    this.geocoder = new maps.Geocoder();
-
-    return mapInstance;
+    return new maps.Map(container, { ...defaultOptions, ...options });
   }
 
   /**
@@ -252,6 +208,7 @@ class GoogleMapsService {
     destination: LocationData,
     vehicleType: VehicleType
   ): RouteData {
+    console.warn('[GoogleMapsService] Using fallback mock location data — check LocationIQ/Google Maps API key configuration');
     const latDiff = origin.latitude - destination.latitude;
     const lngDiff = origin.longitude - destination.longitude;
     const euclideanDeg = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
@@ -317,114 +274,72 @@ class GoogleMapsService {
   /**
    * Fetches Places Autocomplete suggestions strictly from modern Google Places API (New).
    */
+  /**
+   * Fetches Places Autocomplete suggestions using LocationIQ API.
+   */
   public async getPlacePredictions(input: string): Promise<AutocompleteSuggestion[]> {
     if (!input || !input.trim()) return [];
     const query = input.trim();
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    const locationIqKey = import.meta.env.VITE_LOCATIONIQ_KEY || '';
 
-    // Fast-path: If Google Maps API quota limit (429) was reached earlier, use instant local Karachi location dictionary
-    if (this.isQuotaExceeded) {
-      return this.getFallbackKarachiPredictions(query);
-    }
-
-    // 1. Try modern Places JS SDK AutocompleteSuggestion class if available
-    try {
-      await this.loadGoogleMaps();
-      const placesLib = (window.google?.maps?.places as any);
-      if (placesLib?.AutocompleteSuggestion) {
-        const { suggestions } = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-          input: query,
-          includedRegionCodes: ['pk'],
-        });
-        if (suggestions && suggestions.length > 0) {
-          return suggestions.map((s: any) => {
-            const pred = s.placePrediction;
-            return {
-              place_id: pred.placeId,
-              description: pred.text?.text || pred.structuredFormat?.mainText?.text || query,
-              main_text: pred.structuredFormat?.mainText?.text || pred.text?.text || query,
-              secondary_text: pred.structuredFormat?.secondaryText?.text || '',
-            };
-          });
-        }
-      }
-    } catch (err) {
-      // JS SDK failed or rate-limited
-    }
-
-    // 2. Try modern Places API (New) REST Endpoint
-    if (apiKey) {
+    if (locationIqKey && !locationIqKey.includes('MOCK')) {
       try {
-        const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': apiKey,
-          },
-          body: JSON.stringify({
-            input: query,
-            includedRegionCodes: ['pk'],
-          }),
-        });
-
+        const url = `https://api.locationiq.com/v1/autocomplete?key=${locationIqKey}&q=${encodeURIComponent(query)}&countrycodes=pk&limit=5&format=json`;
+        const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
-          const items = json.suggestions || [];
-          if (items.length > 0) {
-            return items.map((item: any) => {
-              const pred = item.placePrediction;
+          if (Array.isArray(json) && json.length > 0) {
+            const mappedSuggestions: AutocompleteSuggestion[] = json.map((item: any, idx: number) => {
+              const mainText = item.display_place || item.display_name?.split(',')[0] || query;
+              const secondaryText = item.display_address || item.display_name?.split(',').slice(1).join(',').trim() || 'Karachi, Pakistan';
+              const placeId = String(item.place_id || `lociq_${Date.now()}_${idx}`);
+              const displayName = item.display_name || `${mainText}, ${secondaryText}`;
+
+              const locationData: LocationData = {
+                place_id: placeId,
+                formatted_address: displayName,
+                latitude: parseFloat(item.lat || '24.8607'),
+                longitude: parseFloat(item.lon || '67.0011'),
+                city: item.address?.city || item.address?.town || 'Karachi',
+                area: item.address?.suburb || item.address?.neighbourhood || mainText,
+                country: item.address?.country || 'Pakistan',
+                name: mainText,
+              };
+
+              this.predictionDetailsCache.set(placeId, locationData);
+
               return {
-                place_id: pred.placeId,
-                description: pred.text?.text || pred.structuredFormat?.mainText?.text || query,
-                main_text: pred.structuredFormat?.mainText?.text || pred.text?.text || query,
-                secondary_text: pred.structuredFormat?.secondaryText?.text || '',
+                place_id: placeId,
+                description: displayName,
+                main_text: mainText,
+                secondary_text: secondaryText,
               };
             });
-          }
-        } else if (res.status === 429) {
-          this.isQuotaExceeded = true;
-          console.warn('[GoogleMapsService] Google Places API Quota Exceeded (HTTP 429). Switching to instant Karachi fallback mode.');
-          return this.getFallbackKarachiPredictions(query);
-        }
-      } catch (err) {
-        // Fetch failed
-      }
-    }
 
-    // 3. Fallback to legacy AutocompleteService if available and enabled
-    try {
-      if (window.google?.maps?.places?.AutocompleteService) {
-        if (!this.autocompleteService) {
-          this.autocompleteService = new window.google.maps.places.AutocompleteService();
-        }
-        return new Promise((resolve) => {
-          this.autocompleteService!.getPlacePredictions(
-            { input: query, componentRestrictions: { country: 'pk' } },
-            (predictions, status) => {
-              if (status === 'OK' && predictions && predictions.length > 0) {
-                resolve(
-                  predictions.map((p) => ({
-                    place_id: p.place_id,
-                    description: p.description,
-                    main_text: p.structured_formatting?.main_text || p.description,
-                    secondary_text: p.structured_formatting?.secondary_text || '',
-                  }))
-                );
-              } else {
-                resolve([]);
+            // Deduplicate suggestions by place_id keeping the first occurrence
+            const seenPlaceIds = new Set<string>();
+            const uniqueSuggestions: AutocompleteSuggestion[] = [];
+
+            for (const s of mappedSuggestions) {
+              if (!seenPlaceIds.has(s.place_id)) {
+                seenPlaceIds.add(s.place_id);
+                uniqueSuggestions.push(s);
               }
             }
-          );
-        });
+
+            return uniqueSuggestions;
+          }
+        }
+      } catch (err) {
+        console.warn('[GoogleMapsService] LocationIQ Autocomplete error:', err);
       }
-    } catch (e) {
-      console.warn('[GoogleMapsService] Legacy AutocompleteService fallback failed:', e);
     }
 
     return this.getFallbackKarachiPredictions(query);
   }
 
   private getFallbackKarachiPredictions(query: string): AutocompleteSuggestion[] {
+    console.warn('[GoogleMapsService] Using fallback mock location data — check LocationIQ/Google Maps API key configuration');
     const karachiLocations = [
       { place_id: 'pk_khi_clifton_01', description: 'Clifton, Karachi', main_text: 'Clifton', secondary_text: 'Karachi, Sindh, Pakistan' },
       { place_id: 'pk_khi_gulshan_01', description: 'Gulshan-e-Iqbal, Karachi', main_text: 'Gulshan-e-Iqbal', secondary_text: 'Karachi, Sindh, Pakistan' },
@@ -451,121 +366,12 @@ class GoogleMapsService {
   }
 
   /**
-   * Retrieves full details for a selected place ID strictly from modern Google Places API (New).
+   * Retrieves full details for a selected place ID using LocationIQ API or Karachi mock fallback.
    */
   public async getPlaceDetails(placeId: string): Promise<LocationData> {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-
-    // 1. Try modern Places JS SDK Place class if available
-    try {
-      await this.loadGoogleMaps();
-      const placesLib = (window.google?.maps?.places as any);
-      if (placesLib?.Place) {
-        console.log('[GoogleMapsService] Calling Places JS SDK Place class for place_id:', placeId);
-        const place = new placesLib.Place({ id: placeId });
-        await place.fetchFields({
-          fields: ['location', 'formattedAddress', 'addressComponents', 'displayName'],
-        });
-
-        if (place.location) {
-          const lat = typeof place.location.lat === 'function' ? place.location.lat() : place.location.lat;
-          const lng = typeof place.location.lng === 'function' ? place.location.lng() : place.location.lng;
-          const parsed = this.parseAddressComponents(place.addressComponents || []);
-
-          return {
-            place_id: placeId,
-            formatted_address: place.formattedAddress || place.displayName || 'Selected Location',
-            latitude: lat,
-            longitude: lng,
-            city: parsed.city || 'Karachi',
-            area: parsed.area,
-            country: parsed.country || 'Pakistan',
-            name: place.displayName,
-          };
-        }
-      }
-    } catch (err) {
-      console.warn('[GoogleMapsService] Places JS SDK Place class exception:', err);
+    if (this.predictionDetailsCache.has(placeId)) {
+      return this.predictionDetailsCache.get(placeId)!;
     }
-
-    // 2. Try modern Places API (New) REST Details endpoint
-    if (apiKey) {
-      try {
-        console.log('[GoogleMapsService] Calling Places API (New) REST Details endpoint for place_id:', placeId);
-        const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
-          headers: {
-            'X-Goog-Api-Key': apiKey,
-            'X-Goog-FieldMask': 'id,formattedAddress,location,addressComponents,displayName',
-          },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.location) {
-            const lat = data.location.latitude;
-            const lng = data.location.longitude;
-            const parsed = this.parseAddressComponents(data.addressComponents || []);
-
-            return {
-              place_id: placeId,
-              formatted_address: data.formattedAddress || data.displayName?.text || 'Selected Location',
-              latitude: lat,
-              longitude: lng,
-              city: parsed.city || 'Karachi',
-              area: parsed.area,
-              country: parsed.country || 'Pakistan',
-              name: data.displayName?.text,
-            };
-          }
-        } else if (res.status === 429) {
-          this.isQuotaExceeded = true;
-        }
-      } catch (err) {
-        console.warn('[GoogleMapsService] Places API (New) REST details exception:', err);
-      }
-    }
-
-    // 3. Fallback to legacy PlacesService if available
-    try {
-      if (!this.placesService && window.google?.maps?.places) {
-        const dummyNode = document.createElement('div');
-        this.placesService = new window.google.maps.places.PlacesService(dummyNode);
-      }
-      if (this.placesService) {
-        return new Promise((resolve, reject) => {
-          this.placesService!.getDetails(
-            {
-              placeId,
-              fields: ['place_id', 'formatted_address', 'geometry', 'address_components', 'name'],
-            },
-            (place, status) => {
-              if (status === 'OK' && place && place.geometry?.location) {
-                const lat = place.geometry.location.lat();
-                const lng = place.geometry.location.lng();
-                const parsed = this.parseAddressComponents(place.address_components || []);
-
-                resolve({
-                  place_id: place.place_id || placeId,
-                  formatted_address: place.formatted_address || place.name || 'Selected Location',
-                  latitude: lat,
-                  longitude: lng,
-                  city: parsed.city || 'Karachi',
-                  area: parsed.area,
-                  country: parsed.country || 'Pakistan',
-                  name: place.name,
-                });
-              } else {
-                reject(new Error(`Unable to load Google Place Details for place_id: ${placeId}`));
-              }
-            }
-          );
-        });
-      }
-    } catch (e) {
-      console.warn('[GoogleMapsService] Legacy PlacesService details fallback failed:', e);
-    }
-
-    // Robust Karachi details fallback when Google Maps API quota is reached
     const mockDetailsMap: Record<string, LocationData> = {
       pk_khi_clifton_01: { place_id: 'pk_khi_clifton_01', formatted_address: 'Clifton, Karachi, Pakistan', latitude: 24.8138, longitude: 67.0333, city: 'Karachi', area: 'Clifton', country: 'Pakistan', name: 'Clifton' },
       pk_khi_gulshan_01: { place_id: 'pk_khi_gulshan_01', formatted_address: 'Gulshan-e-Iqbal, Karachi, Pakistan', latitude: 24.9204, longitude: 67.0944, city: 'Karachi', area: 'Gulshan-e-Iqbal', country: 'Pakistan', name: 'Gulshan-e-Iqbal' },
@@ -578,8 +384,45 @@ class GoogleMapsService {
       pk_khi_kalaboard_01: { place_id: 'pk_khi_kalaboard_01', formatted_address: 'Kala Board, Karachi, Pakistan', latitude: 24.8700, longitude: 67.1800, city: 'Karachi', area: 'Kala Board', country: 'Pakistan', name: 'Kala Board' },
     };
 
-    if (mockDetailsMap[placeId]) {
-      return mockDetailsMap[placeId];
+    if (placeId.startsWith('pk_khi_') || placeId.startsWith('custom_') || mockDetailsMap[placeId]) {
+      return mockDetailsMap[placeId] || {
+        place_id: placeId,
+        formatted_address: `${placeId.replace(/_/g, ' ')}, Karachi, Pakistan`,
+        latitude: 24.8607,
+        longitude: 67.0011,
+        city: 'Karachi',
+        area: 'Karachi',
+        country: 'Pakistan',
+        name: placeId,
+      };
+    }
+
+    const locationIqKey = import.meta.env.VITE_LOCATIONIQ_KEY || '';
+    if (locationIqKey && !locationIqKey.includes('MOCK')) {
+      try {
+        const url = `https://api.locationiq.com/v1/search?key=${locationIqKey}&q=${encodeURIComponent(placeId)}&countrycodes=pk&format=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const item = Array.isArray(data) ? data[0] : data;
+          if (item && item.lat && item.lon) {
+            const displayName = item.display_name || 'Selected Location';
+            const namePart = displayName.split(',')[0];
+            return {
+              place_id: placeId,
+              formatted_address: displayName,
+              latitude: parseFloat(item.lat),
+              longitude: parseFloat(item.lon),
+              city: item.address?.city || item.address?.town || 'Karachi',
+              area: item.address?.suburb || item.address?.neighbourhood || namePart,
+              country: item.address?.country || 'Pakistan',
+              name: namePart,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('[GoogleMapsService] LocationIQ Place Details error:', err);
+      }
     }
 
     return {
@@ -595,38 +438,46 @@ class GoogleMapsService {
   }
 
   /**
-   * Reverse Geocodes coordinates to a LocationData object.
+   * Reverse Geocodes coordinates to a LocationData object using LocationIQ API.
    */
   public async reverseGeocode(coords: MapCoordinates): Promise<LocationData> {
-    await this.loadGoogleMaps();
-    if (!this.geocoder && window.google?.maps) {
-      this.geocoder = new window.google.maps.Geocoder();
-    }
+    const locationIqKey = import.meta.env.VITE_LOCATIONIQ_KEY || '';
 
-    if (!this.geocoder) {
-      throw new Error('Google Geocoder service not available.');
-    }
-
-    return new Promise((resolve, reject) => {
-      this.geocoder!.geocode({ location: coords }, (results, status) => {
-        if (status === 'OK' && results && results[0]) {
-          const first = results[0];
-          const parsed = this.parseAddressComponents(first.address_components);
-
-          resolve({
-            place_id: first.place_id,
-            formatted_address: first.formatted_address,
-            latitude: coords.lat,
-            longitude: coords.lng,
-            city: parsed.city,
-            area: parsed.area,
-            country: parsed.country,
-          });
-        } else {
-          reject(new Error('Reverse geocoding failed.'));
+    if (locationIqKey && !locationIqKey.includes('MOCK')) {
+      try {
+        const url = `https://api.locationiq.com/v1/reverse?key=${locationIqKey}&lat=${coords.lat}&lon=${coords.lng}&format=json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.display_name) {
+            const displayName = data.display_name;
+            const namePart = displayName.split(',')[0];
+            return {
+              place_id: data.place_id ? String(data.place_id) : `rev_${coords.lat}_${coords.lng}`,
+              formatted_address: displayName,
+              latitude: coords.lat,
+              longitude: coords.lng,
+              city: data.address?.city || data.address?.town || data.address?.county || 'Karachi',
+              area: data.address?.suburb || data.address?.neighbourhood || data.address?.road || namePart,
+              country: data.address?.country || 'Pakistan',
+              name: namePart,
+            };
+          }
         }
-      });
-    });
+      } catch (err) {
+        console.warn('[GoogleMapsService] LocationIQ Reverse Geocode error:', err);
+      }
+    }
+
+    return {
+      place_id: `rev_${coords.lat}_${coords.lng}`,
+      formatted_address: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+      latitude: coords.lat,
+      longitude: coords.lng,
+      city: 'Karachi',
+      area: 'Karachi',
+      country: 'Pakistan',
+    };
   }
 
   /**
@@ -696,28 +547,6 @@ class GoogleMapsService {
         };
       })
     );
-  }
-
-  private parseAddressComponents(components: google.maps.GeocoderAddressComponent[]): {
-    city?: string;
-    area?: string;
-    country?: string;
-  } {
-    let city: string | undefined;
-    let area: string | undefined;
-    let country: string | undefined;
-
-    for (const comp of components) {
-      if (comp.types.includes('locality')) {
-        city = comp.long_name;
-      } else if (comp.types.includes('sublocality_level_1') || comp.types.includes('neighborhood')) {
-        area = comp.long_name;
-      } else if (comp.types.includes('country')) {
-        country = comp.long_name;
-      }
-    }
-
-    return { city, area, country };
   }
 }
 

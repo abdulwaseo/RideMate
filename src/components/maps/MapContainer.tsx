@@ -81,6 +81,7 @@ export const MapContainer: React.FC<MapContainerProps> = ({
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally track primitive coordinates center.lat/center.lng to prevent re-initializing Google Maps instance on parent object re-renders
   }, [center.lat, center.lng, zoom, interactive]);
 
   if (mapError) {

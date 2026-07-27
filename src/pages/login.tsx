@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Phone, LogIn, ArrowRight } from 'lucide-react';
+import { Phone, LogIn, ArrowRight, User, Car, ShieldCheck } from 'lucide-react';
 import { AuthLayout } from '../components/auth/AuthLayout';
 import { AuthCard } from '../components/auth/AuthCard';
 import { PasswordInput } from '../components/auth/PasswordInput';
@@ -16,6 +16,8 @@ import type { LoginFormValues } from '../utils/validation';
 import { ROUTES } from '../constants/routes';
 import { cn } from '../utils/cn';
 
+const REMEMBERED_MOBILE_KEY = 'ridemate_remembered_mobile';
+
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -26,9 +28,9 @@ export const LoginPage: React.FC = () => {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isValid },
     reset,
+    setValue,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     mode: 'onChange',
@@ -39,24 +41,34 @@ export const LoginPage: React.FC = () => {
     }
   });
 
-  const fillDemoAccount = (demoRole: UserRole, mobile: string) => {
-    setRole(demoRole);
-    setValue('mobileNumber', mobile, { shouldValidate: true, shouldDirty: true });
-    setValue('password', '123456789', { shouldValidate: true, shouldDirty: true });
-    setErrorMsg(null);
-  };
+  // On mount: check for remembered mobile number and populate form
+  useEffect(() => {
+    const rememberedMobile = localStorage.getItem(REMEMBERED_MOBILE_KEY);
+    if (rememberedMobile) {
+      setValue('mobileNumber', rememberedMobile, { shouldValidate: true });
+      setValue('rememberMe', true);
+    }
+  }, [setValue]);
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
     setErrorMsg(null);
+
     try {
       const res = await login(values.mobileNumber, values.password, role);
       if (res.success) {
+        // Save or clear remembered mobile number ONLY upon successful login
+        if (values.rememberMe) {
+          localStorage.setItem(REMEMBERED_MOBILE_KEY, values.mobileNumber);
+        } else {
+          localStorage.removeItem(REMEMBERED_MOBILE_KEY);
+        }
+
         navigate(role === 'driver' ? ROUTES.DRIVER_DASHBOARD : ROUTES.PASSENGER_DASHBOARD, { replace: true });
       } else {
         setErrorMsg(res.errorMsg || 'Invalid mobile number or password. Please verify your credentials and try again.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Authentication error. Unable to connect to backend server.');
     } finally {
       setIsSubmitting(false);
@@ -65,7 +77,20 @@ export const LoginPage: React.FC = () => {
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
-    reset(); // Clear errors and values when switching roles
+    const rememberedMobile = localStorage.getItem(REMEMBERED_MOBILE_KEY);
+    if (rememberedMobile) {
+      reset({
+        mobileNumber: rememberedMobile,
+        password: '',
+        rememberMe: true,
+      });
+    } else {
+      reset({
+        mobileNumber: '',
+        password: '',
+        rememberMe: false,
+      });
+    }
   };
 
   const handleForgotPassword = (e: React.MouseEvent) => {
@@ -76,81 +101,54 @@ export const LoginPage: React.FC = () => {
   return (
     <AuthLayout
       title="Welcome Back"
-      subtitle="Sign in to coordinate carpools and track your daily schedules."
+      subtitle="Sign in to coordinate your Karachi daily commute."
     >
       <div className="space-y-5">
         
-        {/* Quick Demo Credentials Box */}
-        <div className="p-3.5 rounded-xl bg-brand-surface/80 border border-brand-border/80 text-xs space-y-2">
-          <div className="flex items-center justify-between text-brand-text font-semibold">
-            <span>🔑 Testing Credentials</span>
-            <span className="text-[10px] bg-brand-accent/20 text-brand-accentLight px-2 py-0.5 rounded-full font-mono">Password: 123456789</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('driver', '03243633432')}
-              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-accent/50 transition-all text-brand-textMuted hover:text-brand-text"
-            >
-              <div className="font-medium text-brand-accentLight text-[11px] truncate">Abdul Waseo (Driver)</div>
-              <div className="font-mono text-[10px] mt-0.5">03243633432</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('passenger', '03161108768')}
-              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-primary/50 transition-all text-brand-textMuted hover:text-brand-text"
-            >
-              <div className="font-medium text-brand-primaryLight text-[11px] truncate">Wasay (Pass 1)</div>
-              <div className="font-mono text-[10px] mt-0.5">03161108768</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => fillDemoAccount('passenger', '03332297246')}
-              className="text-left p-2 rounded-lg bg-brand-bg/60 border border-brand-border hover:border-brand-primary/50 transition-all text-brand-textMuted hover:text-brand-text"
-            >
-              <div className="font-medium text-brand-primaryLight text-[11px] truncate">Wasi (Pass 2)</div>
-              <div className="font-mono text-[10px] mt-0.5">03332297246</div>
-            </button>
-          </div>
-        </div>
-
-        {/* Role Toggle Switch */}
-        <div className="p-1 rounded-xl bg-brand-surface border border-brand-border flex select-none">
+        {/* Floating Portal Selection Tabs Segment */}
+        <div className="p-1 sm:p-1.5 rounded-2xl bg-white/90 border border-slate-200/90 flex gap-1.5 select-none shadow-md shadow-slate-200/50 mb-6 backdrop-blur-md">
           <button
+            type="button"
             onClick={() => handleRoleChange('passenger')}
             className={cn(
-              "flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              "flex-1 py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]",
               role === 'passenger'
-                ? "bg-brand-primary/10 border border-brand-primary/20 text-brand-primaryLight shadow-sm"
-                : "text-brand-textMuted hover:text-brand-text border border-transparent"
+                ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25 border border-emerald-600"
+                : "bg-slate-100/90 hover:bg-slate-200/70 text-slate-600 border border-slate-200/80"
             )}
           >
-            Passenger Portal
+            <User className={cn("w-3.5 h-3.5 shrink-0", role === 'passenger' ? "text-white" : "text-slate-400")} />
+            <span className="truncate">Passenger Portal</span>
           </button>
+
           <button
+            type="button"
             onClick={() => handleRoleChange('driver')}
             className={cn(
-              "flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              "flex-1 py-2.5 px-2 sm:px-3 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px]",
               role === 'driver'
-                ? "bg-brand-accent/10 border border-brand-accent/20 text-brand-accentLight shadow-sm"
-                : "text-brand-textMuted hover:text-brand-text border border-transparent"
+                ? "bg-sky-600 text-white shadow-md shadow-sky-600/25 border border-sky-600"
+                : "bg-slate-100/90 hover:bg-slate-200/70 text-slate-600 border border-slate-200/80"
             )}
           >
-            Driver Portal
+            <Car className={cn("w-3.5 h-3.5 shrink-0", role === 'driver' ? "text-white" : "text-slate-400")} />
+            <span className="truncate">Driver Portal</span>
           </button>
         </div>
 
         {/* Global form errors */}
         <ValidationMessage message={errorMsg || undefined} variant="error" />
 
+        {/* Refined Auth Card */}
         <AuthCard>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4.5">
             
             {/* Mobile input */}
             <Input
               label="Mobile Number"
               placeholder="e.g. 03001234567"
-              leftIcon={<Phone className="h-4.5 w-4.5" />}
+              inputFilter="mobile"
+              leftIcon={<Phone className="h-4.5 w-4.5 text-slate-400" />}
               error={errors.mobileNumber?.message}
               disabled={isSubmitting}
               {...register('mobileNumber')}
@@ -159,18 +157,18 @@ export const LoginPage: React.FC = () => {
             {/* Password input */}
             <PasswordInput
               label="Password"
-              placeholder="Enter your security password"
+              placeholder="Enter your password"
               error={errors.password?.message}
               disabled={isSubmitting}
               {...register('password')}
             />
 
             {/* Form actions row */}
-            <div className="flex items-center justify-between text-xs py-1.5 select-none">
-              <label className="flex items-center gap-2 text-brand-textMuted font-semibold cursor-pointer">
+            <div className="flex items-center justify-between text-xs py-1 select-none">
+              <label className="flex items-center gap-2 text-slate-600 font-medium cursor-pointer hover:text-slate-800 transition-colors">
                 <input
                   type="checkbox"
-                  className="rounded border-brand-border bg-brand-surface text-brand-primary focus:ring-brand-primary h-4 w-4"
+                  className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 transition-all"
                   disabled={isSubmitting}
                   {...register('rememberMe')}
                 />
@@ -180,7 +178,7 @@ export const LoginPage: React.FC = () => {
               <a
                 href="#"
                 onClick={handleForgotPassword}
-                className="text-brand-accent hover:text-brand-accentLight hover:underline font-semibold"
+                className="text-emerald-600 hover:text-emerald-700 hover:underline font-semibold transition-colors"
               >
                 Forgot Password?
               </a>
@@ -190,22 +188,31 @@ export const LoginPage: React.FC = () => {
             <Button
               type="submit"
               variant={role === 'driver' ? 'secondary' : 'primary'}
-              className="w-full mt-2"
+              className="w-full mt-3 py-3 min-h-[48px] shadow-md shadow-emerald-500/10 font-bold"
               disabled={!isValid || isSubmitting}
               isLoading={isSubmitting}
               leftIcon={<LogIn className="h-4.5 w-4.5" />}
             >
-              Sign In
+              Sign In to {role === 'driver' ? 'Driver Portal' : 'Passenger Portal'}
             </Button>
           </form>
         </AuthCard>
 
+        {/* Security / Corporate Trust Badge Pill */}
+        <div className="flex justify-center pt-1">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/80 border border-slate-200/80 text-slate-500 text-xs font-semibold shadow-2xs backdrop-blur-md">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Encrypted Karachi Coworker Auth</span>
+          </div>
+        </div>
+
         {/* Register navigation link */}
-        <div className="text-center text-xs text-brand-muted select-none pt-1">
+        <div className="text-center text-xs text-slate-500 select-none pt-1">
           Don't have an account?{' '}
           <button
+            type="button"
             onClick={() => navigate(ROUTES.SELECT_ROLE)}
-            className="font-bold text-brand-accent hover:text-brand-accentLight hover:underline ml-1 inline-flex items-center gap-0.5"
+            className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline ml-1 inline-flex items-center gap-1 transition-colors cursor-pointer"
           >
             <span>Register instead</span>
             <ArrowRight className="h-3 w-3" />

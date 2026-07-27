@@ -119,9 +119,9 @@ export const RideDetails: React.FC = () => {
     };
   }, [id, contextRide]);
 
-  // Check if passenger already has an active request (Pending or Accepted)
+  // Check if passenger already has an active request (Pending or Accepted on an un-completed ride)
   const activeRequest = bookingRequests.find(
-    (req) => req.status === 'Pending' || req.status === 'Accepted'
+    (req) => (req.status === 'Pending' || req.status === 'Accepted') && req.ride.status !== 'Completed'
   );
 
   const hasActiveRequest = !!activeRequest;
@@ -165,7 +165,7 @@ export const RideDetails: React.FC = () => {
       } else {
         setErrorMsg('Could not send booking request. Check if an active request already exists.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Failed to submit booking request. Please check connections.');
     } finally {
       setIsSubmitting(false);
@@ -198,7 +198,7 @@ export const RideDetails: React.FC = () => {
 
       {/* Active Booking warning block */}
       {hasActiveRequest && (
-        <Card hoverEffect={false} className="border border-brand-accent/20 bg-[#0c1424] p-5 flex gap-4 text-left max-w-3xl">
+        <Card hoverEffect={false} className="border border-brand-accent/30 bg-sky-50/80 p-5 flex gap-4 text-left max-w-3xl">
           <div className="p-2.5 rounded-xl bg-brand-accent/10 border border-brand-accent/20 text-brand-accent h-fit">
             <AlertTriangle className="h-5 w-5" />
           </div>

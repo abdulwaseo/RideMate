@@ -98,7 +98,7 @@ export const DriverRegisterPage: React.FC = () => {
       } else {
         setErrorMsg(res.errorMsg || 'Registration failed. Please check details and try again.');
       }
-    } catch (err) {
+    } catch {
       setErrorMsg('Registration failed. Please check details and try again.');
     } finally {
       setIsSubmitting(false);
@@ -256,7 +256,7 @@ export const DriverRegisterPage: React.FC = () => {
               {/* Segmented Selector for Vehicle Type */}
               <div className="flex flex-col gap-1.5 text-left">
                 <span className="text-xs font-semibold tracking-wide text-brand-textMuted uppercase">Vehicle Type</span>
-                <div className="p-1 rounded-xl bg-brand-surface border border-brand-border flex select-none max-w-xs">
+                <div className="p-1 rounded-xl bg-brand-surface border border-brand-border flex select-none w-full sm:max-w-xs">
                   <button
                     type="button"
                     onClick={() => {}}
@@ -377,7 +377,7 @@ export const DriverRegisterPage: React.FC = () => {
             <Button
               type="submit"
               variant="secondary"
-              className="w-full mt-2"
+              className="w-full mt-2 min-h-[48px] font-bold"
               disabled={!isValid || isSubmitting}
               isLoading={isSubmitting}
             >

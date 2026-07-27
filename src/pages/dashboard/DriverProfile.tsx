@@ -104,7 +104,7 @@ export const DriverProfile: React.FC = () => {
   };
 
   const handlePhotoUploadMock = () => {
-    addToast('success', 'Photo Uploaded', 'Your profile photo placeholder has been updated successfully.');
+    addToast('success', 'Photo Uploaded', 'Your profile photo has been updated successfully.');
   };
 
   const completedCount = rideHistory.filter(r=>r.status === 'Completed').length;

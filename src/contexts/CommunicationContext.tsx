@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { getAuthToken } from '../utils/token';
 import { useRide } from './RideContext';
@@ -107,8 +107,8 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
     setNotifications(updated);
   };
 
-  // Helper to append a notification
-  const addNotification = (
+  // Helper to append a notification (memoized with useCallback to prevent effect re-trigger loops)
+  const addNotification = useCallback((
     category: NotificationCategory,
     title: string,
     description: string,
@@ -123,8 +123,8 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
       isRead: false,
       actionUrl,
     };
-    saveNotifications([newNotif, ...notifications]);
-  };
+    setNotifications((prev) => [newNotif, ...prev]);
+  }, []);
 
   // 1. Reactive Syncing of Chat Rooms from Backend API
   useEffect(() => {
@@ -228,7 +228,7 @@ export const CommunicationProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
     });
-  }, [bookingRequests, user]);
+  }, [bookingRequests, user, addNotification]);
 
   const sendMessage = async (roomId: string, text: string): Promise<boolean> => {
     if (!user) return false;
