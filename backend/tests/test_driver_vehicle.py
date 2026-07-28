@@ -60,13 +60,15 @@ BIKE_PAYLOAD = {
 
 @pytest.fixture
 def auth_driver_headers(client):
-    """Register user, create driver profile, return auth headers."""
+    """Register user, create driver profile, return auth headers with elevated token."""
     reg = client.post("/api/v1/auth/register", json=USER_1)
     access_token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    client.post("/api/v1/drivers/profile", json=DRIVER_PAYLOAD_1, headers=headers)
-    return headers
+    profile_resp = client.post("/api/v1/drivers/profile", json=DRIVER_PAYLOAD_1, headers=headers)
+    new_token = profile_resp.json()["data"]["tokens"]["access_token"]
+    return {"Authorization": f"Bearer {new_token}"}
+
 
 
 @pytest.fixture
@@ -96,9 +98,12 @@ class TestDriverProfile:
         assert body["data"]["license_number"] == DRIVER_PAYLOAD_2["license_number"]
         assert body["data"]["verification_status"] == "Pending"
 
-        # Verify role elevated to DRIVER
-        me_resp = client.get("/api/v1/auth/me", headers=auth_passenger_headers)
+        # Verify role elevated to DRIVER using re-issued elevated token
+        new_token = body["data"]["tokens"]["access_token"]
+        new_headers = {"Authorization": f"Bearer {new_token}"}
+        me_resp = client.get("/api/v1/auth/me", headers=new_headers)
         assert me_resp.json()["data"]["role"] == UserRole.DRIVER.value
+
 
     def test_create_duplicate_driver_profile_fails(self, client, auth_driver_headers):
         resp = client.post(

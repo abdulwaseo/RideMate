@@ -21,8 +21,10 @@ def driver_token(client):
     reg = client.post("/api/v1/auth/register", json=DRIVER_USER)
     token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-9988776-1", "license_number": "DL-WS-1"}, headers=headers)
-    return token, headers
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-9988776-1", "license_number": "DL-WS-1"}, headers=headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    return new_token, {"Authorization": f"Bearer {new_token}"}
+
 
 
 @pytest.fixture

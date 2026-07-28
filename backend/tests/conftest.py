@@ -1,6 +1,9 @@
 import os
 os.environ["APP_ENV"] = "testing"
+os.environ["DATABASE_URL"] = "sqlite:///./test_ridemate.db"
+os.environ["SECRET_KEY"] = "testing_secret_key_123456789_test_suite"
 import pytest
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -16,6 +19,11 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+import app.db.database as db_mod
+db_mod.engine = engine
+db_mod.SessionLocal = TestingSessionLocal
+
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -37,11 +45,12 @@ def clean_tables():
     from sqlalchemy import text
     with engine.connect() as conn:
         conn.execute(text("PRAGMA foreign_keys=OFF;"))
-        for table in Base.metadata.sorted_tables:
+        for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
         conn.execute(text("PRAGMA foreign_keys=ON;"))
         conn.commit()
     yield
+
 
 
 @pytest.fixture(scope="function")

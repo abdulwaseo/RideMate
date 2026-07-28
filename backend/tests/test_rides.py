@@ -62,7 +62,9 @@ def driver_with_active_vehicle(client):
     token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    client.post("/api/v1/drivers/profile", json=DRIVER_PROFILE, headers=headers)
+    p_resp = client.post("/api/v1/drivers/profile", json=DRIVER_PROFILE, headers=headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {new_token}"}
     client.post("/api/v1/vehicles", json=CAR_VEHICLE, headers=headers)
     return headers
 
@@ -81,9 +83,12 @@ def other_driver_headers(client):
     reg = client.post("/api/v1/auth/register", json=OTHER_DRIVER)
     token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-2222222-2", "license_number": "DL-002"}, headers=headers)
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-2222222-2", "license_number": "DL-002"}, headers=headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {new_token}"}
     client.post("/api/v1/vehicles", json={**CAR_VEHICLE, "registration_number": "RIDE-202"}, headers=headers)
     return headers
+
 
 
 # ------------------------------------------------------------------ #
@@ -126,10 +131,11 @@ class TestPublishRide:
         assert resp.status_code == 403
         assert "[RIDE_003]" in resp.json()["message"]
 
-    def test_driver_without_active_vehicle_fails(self, client, passenger_headers):
-        # Upgrade passenger to driver without adding vehicle
-        client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-3333333-3", "license_number": "DL-003"}, headers=passenger_headers)
-        resp = client.post("/api/v1/rides", json=VALID_RIDE_PAYLOAD, headers=passenger_headers)
+        p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-3333333-3", "license_number": "DL-003"}, headers=passenger_headers)
+        new_token = p_resp.json()["data"]["tokens"]["access_token"]
+        d_headers = {"Authorization": f"Bearer {new_token}"}
+        resp = client.post("/api/v1/rides", json=VALID_RIDE_PAYLOAD, headers=d_headers)
+
         assert resp.status_code == 400
         assert "[RIDE_002]" in resp.json()["message"]
 

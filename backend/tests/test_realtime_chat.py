@@ -33,7 +33,10 @@ def driver_and_passenger_with_confirmed_booking(client):
     d_token = d_reg.json()["data"]["tokens"]["access_token"]
     d_headers = {"Authorization": f"Bearer {d_token}"}
 
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-7711223-1", "license_number": "DL-771"}, headers=d_headers)
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-7711223-1", "license_number": "DL-771"}, headers=d_headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    d_headers = {"Authorization": f"Bearer {new_token}"}
+
     client.post("/api/v1/vehicles", json={
         "vehicle_type": VehicleType.CAR.value,
         "manufacturer": "Toyota",

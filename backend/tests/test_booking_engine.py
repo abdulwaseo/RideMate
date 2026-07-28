@@ -44,7 +44,10 @@ def driver_with_ride(client):
     token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-1111111-1", "license_number": "DL-111"}, headers=headers)
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-1111111-1", "license_number": "DL-111"}, headers=headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {new_token}"}
+
     client.post("/api/v1/vehicles", json={
         "vehicle_type": VehicleType.BIKE.value,
         "manufacturer": "Honda",
@@ -58,6 +61,7 @@ def driver_with_ride(client):
     pub = client.post("/api/v1/rides", json=BIKE_RIDE_PAYLOAD, headers=headers)
     ride_id = pub.json()["data"]["id"]
     return headers, ride_id
+
 
 
 @pytest.fixture

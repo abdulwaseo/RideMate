@@ -35,9 +35,13 @@ def driver_with_active_vehicle(client):
     token = reg.json()["data"]["tokens"]["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    client.post("/api/v1/drivers/profile", json=driver_profile, headers=headers)
+    p_resp = client.post("/api/v1/drivers/profile", json=driver_profile, headers=headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    headers = {"Authorization": f"Bearer {new_token}"}
+
     client.post("/api/v1/vehicles", json=CAR_VEHICLE, headers=headers)
     return headers
+
 
 
 @pytest.fixture

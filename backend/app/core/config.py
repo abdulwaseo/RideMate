@@ -31,8 +31,13 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def sanitize_database_url(cls, v: str) -> str:
-        if isinstance(v, str) and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql://", 1)
+        if not v or not isinstance(v, str) or not v.strip():
+            raise ValueError("[CRITICAL CONFIG ERROR] DATABASE_URL environment variable is missing or empty. Please set a valid PostgreSQL connection string in the environment or .env file.")
+        v = v.strip()
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        if not (v.startswith("postgresql://") or v.startswith("sqlite://")):
+            raise ValueError(f"[CRITICAL CONFIG ERROR] Invalid DATABASE_URL scheme '{v}'. Connection string must start with 'postgresql://' or 'postgres://'.")
         return v
 
     # CORS origins resolver
@@ -73,4 +78,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     UPLOAD_DIRECTORY: str = "uploads"
 
-settings = Settings()
+
+try:
+    settings = Settings()
+except Exception as exc:
+    import sys
+    print(f"\n❌ [DATABASE_URL / CONFIG ERROR] App startup failed because required configuration settings are missing or invalid:\n{exc}\n", file=sys.stderr)
+    raise SystemExit(1) from exc
+

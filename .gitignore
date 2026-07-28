@@ -31,8 +31,11 @@ dist-ssr
 # Python
 backend/.env
 backend/.venv/
+backend/*.db
+test_ridemate.db
 __pycache__/
 *.pyc
+
 
 # Logs
 backend/logs/

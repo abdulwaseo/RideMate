@@ -35,7 +35,10 @@ def rating_setup(client):
     d_user_id = d_reg.json()["data"]["user"]["id"]
     d_headers = {"Authorization": f"Bearer {d_token}"}
 
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-5555555-5", "license_number": "DL-555"}, headers=d_headers)
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-5555555-5", "license_number": "DL-555"}, headers=d_headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    d_headers = {"Authorization": f"Bearer {new_token}"}
+
     client.post("/api/v1/vehicles", json={
         "vehicle_type": VehicleType.CAR.value,
         "manufacturer": "Suzuki",

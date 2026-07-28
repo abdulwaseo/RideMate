@@ -62,12 +62,55 @@ from app.services.websocket_service import start_heartbeat_monitor, stop_heartbe
 app.include_router(ws_router)
 
 
+@app.get("/")
+def root():
+    return {"status": "ok", "message": "RideMate API is running"}
+
+
+
+import os
+from alembic.config import Config
+from alembic import command
+
+
+def run_db_migrations():
+    """Run Alembic database migrations or fallback to Base.metadata.create_all() on app startup."""
+    try:
+        logger.info("Executing database migrations (alembic upgrade head)...")
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ini_path = os.path.join(backend_dir, "alembic.ini")
+        if os.path.exists(ini_path):
+            alembic_cfg = Config(ini_path)
+            alembic_cfg.set_main_option("script_location", os.path.join(backend_dir, "alembic"))
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic database migrations completed successfully.")
+        else:
+            logger.warning(f"alembic.ini not found at {ini_path}. Running Base.metadata.create_all() fallback.")
+            from app.db.base import Base
+            from app.db.database import engine
+            Base.metadata.create_all(bind=engine)
+            logger.info("Base.metadata.create_all() completed successfully.")
+    except Exception as exc:
+        logger.exception(f"Alembic migration failed during startup: {exc}. Attempting Base.metadata.create_all() fallback...")
+        try:
+            from app.db.base import Base
+            from app.db.database import engine
+            Base.metadata.create_all(bind=engine)
+            logger.info("Base.metadata.create_all() fallback executed successfully.")
+        except Exception as fallback_exc:
+            logger.exception(f"Database schema initialization failed completely: {fallback_exc}")
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize Redis Pub/Sub and heartbeat monitor task."""
-    logger.info("Application starting: initializing Redis bus and heartbeat monitor.")
+    """Initialize DB migrations, Redis Pub/Sub, and heartbeat monitor task."""
+    logger.info("Application starting: running database migrations, initializing Redis bus and heartbeat monitor.")
+    if settings.APP_ENV not in ("testing", "test"):
+        run_db_migrations()
     await redis_bus.connect()
     start_heartbeat_monitor()
+
+
 
 
 @app.on_event("shutdown")

@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from loguru import logger
 from app.core.config import settings
 
 db_url = settings.DATABASE_URL
@@ -17,8 +18,12 @@ engine_kwargs: dict = {
 if any(provider in db_url for provider in ["render.com", "neon.tech", "supabase", "cockroach"]) or "sslmode=require" in db_url:
     engine_kwargs["connect_args"] = {"sslmode": "require"}
 
-# Initialize SQLAlchemy PostgreSQL Database connection engine
-engine = create_engine(db_url, **engine_kwargs)
+try:
+    # Initialize SQLAlchemy PostgreSQL Database connection engine
+    engine = create_engine(db_url, **engine_kwargs)
+except Exception as exc:
+    logger.error(f"[DATABASE CONNECTION ERROR] Failed to create SQLAlchemy engine with provided DATABASE_URL: {exc}")
+    raise SystemExit(1) from exc
 
 # Thread-safe db transaction session local instances
 SessionLocal = sessionmaker(
@@ -26,3 +31,4 @@ SessionLocal = sessionmaker(
     autoflush=False,
     bind=engine,
 )
+

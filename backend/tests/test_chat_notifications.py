@@ -34,7 +34,10 @@ def chat_setup(client):
     driver_token = driver_reg.json()["data"]["tokens"]["access_token"]
     driver_headers = {"Authorization": f"Bearer {driver_token}"}
 
-    client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-9999999-9", "license_number": "DL-999"}, headers=driver_headers)
+    p_resp = client.post("/api/v1/drivers/profile", json={"cnic_number": "42101-9999999-9", "license_number": "DL-999"}, headers=driver_headers)
+    new_token = p_resp.json()["data"]["tokens"]["access_token"]
+    driver_headers = {"Authorization": f"Bearer {new_token}"}
+
     client.post("/api/v1/vehicles", json={
         "vehicle_type": VehicleType.CAR.value,
         "manufacturer": "Toyota",
